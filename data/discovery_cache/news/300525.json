@@ -1,0 +1,107 @@
+{
+  "code": "300525",
+  "source": "eastmoney",
+  "updated_at": "2026-06-12 10:20:46",
+  "items": [
+    {
+      "title": "博思软件：控股股东陈航累计质押50.77%持股",
+      "date": "2026-06-08 20:33:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202606083763838891.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "博思软件：董事兼副总经理肖勇因个人原因辞职",
+      "date": "2026-06-08 19:46:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202606083763803552.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "博思软件：控股股东陈航累计质押50.45%持股",
+      "date": "2026-06-02 18:03:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202606023757666492.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "博思软件：关于控股股东、实际控制人部分股权补充质押的公告",
+      "date": "2026-06-02 21:07:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606023757833174.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "博思软件：2025年度分红派息实施公告",
+      "date": "2026-05-28 21:13:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605283753043450.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "博思软件：控股股东陈航累计质押近五成持股",
+      "date": "2026-05-26 18:37:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202605263749827683.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "博思软件：主营业务未涉及算力",
+      "date": "2026-05-09 16:19:58",
+      "source": "界面新闻",
+      "url": "http://finance.eastmoney.com/a/202605093732229878.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "软件开发板块震荡走高，汉王科技2连板",
+      "date": "2026-06-09 10:33:32",
+      "source": "界面新闻",
+      "url": "http://finance.eastmoney.com/a/202606093764828145.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "博思软件：公司主营业务为软件产品的开发、销售与服务，未涉及算力",
+      "date": "2026-05-09 21:39:14",
+      "source": "每日经济新闻",
+      "url": "http://finance.eastmoney.com/a/202605093732276953.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "博思软件：公司销售呈现较明显的季节性分布，销售主要集中在下半年尤其是第四季度",
+      "date": "2026-05-09 21:40:22",
+      "source": "每日经济新闻",
+      "url": "http://finance.eastmoney.com/a/202605093732277318.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 24.0,
+  "summary": "消息面偏积极",
+  "positive_count": 3,
+  "negative_count": 0
+}

@@ -1,0 +1,103 @@
+{
+  "code": "000733",
+  "source": "eastmoney",
+  "updated_at": "2026-07-01 15:11:40",
+  "items": [
+    {
+      "title": "MLCC概念震荡反弹 振华科技涨停",
+      "date": "2026-07-01 09:33:10",
+      "source": "东方财富Choice数据",
+      "url": "http://finance.eastmoney.com/a/202607013789288236.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "MLCC概念震荡反弹 振华科技涨停",
+      "date": "2026-07-01 09:32:33",
+      "source": "财联社",
+      "url": "http://finance.eastmoney.com/a/202607013789338111.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "MLCC概念表现活跃，振华科技涨停",
+      "date": "2026-07-01 09:45:18",
+      "source": "界面新闻",
+      "url": "http://finance.eastmoney.com/a/202607013789420955.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "MLCC概念股表现活跃 振华科技涨停",
+      "date": "2026-07-01 09:39:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202607013789393968.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "振华科技：2025年年度权益分派实施公告",
+      "date": "2026-06-23 21:17:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606233779993253.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "振华科技：公司的聚合物钽电容在民用AI服务器领域有供货",
+      "date": "2026-06-23 21:19:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606233779997364.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "振华科技成交额创上市以来新高",
+      "date": "2026-06-16 14:12:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606163772927452.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中国航发控制系统研究所一行到振华科技交流座谈",
+      "date": "2026-06-12 08:47:21",
+      "source": "人民财讯",
+      "url": "http://finance.eastmoney.com/a/202606123768986850.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中国航发控制系统研究所一行到振华科技交流座谈",
+      "date": "2026-06-12 08:43:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606123768988137.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "振华科技：公司目前整体钽电容产能10亿只",
+      "date": "2026-06-05 07:56:36",
+      "source": "财联社",
+      "url": "http://finance.eastmoney.com/a/202606053760947885.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 8.0,
+  "summary": "消息面略偏积极",
+  "positive_count": 1,
+  "negative_count": 0
+}

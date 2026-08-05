@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票详情 - {{ code }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1 id="stock-title">股票详情 {{ code }}</h1>
+                <p>近 30 日资金流向、消息面、买入时机和 Mimo LLM 分析</p>
+            </div>
+            <div class="header-right">
+                <select id="period-selector">
+                    <option value="即时">即时</option>
+                    <option value="3日排行">3日排行</option>
+                    <option value="5日排行">5日排行</option>
+                    <option value="10日排行">10日排行</option>
+                </select>
+                <button id="refresh-btn" type="button">刷新</button>
+                <button id="watchlist-btn" type="button">加入观察池</button>
+                <a class="back-link" href="/">返回列表</a>
+                <a class="back-link" href="/watchlist">观察池</a>
+                <span id="watchlist-status" class="muted"></span>
+            </div>
+        </header>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-label">当前价格</div>
+                <div class="card-value" id="price">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">涨跌幅</div>
+                <div class="card-value" id="pct-change">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">主力净额</div>
+                <div class="card-value" id="main-net">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">综合评分</div>
+                <div class="card-value" id="score">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">明日建仓评分</div>
+                <div class="card-value" id="tomorrow-score">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">买入建议</div>
+                <div class="card-value card-value-sm" id="timing-level">--</div>
+            </div>
+        </div>
+
+        <div class="stock-detail-layout">
+            <main class="detail-main">
+                <section class="section">
+                    <div class="section-title">
+                        <h3>近 30 日资金流向</h3>
+                        <span id="history-source">--</span>
+                    </div>
+                    <div id="chart-history-large" class="detail-chart"></div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">
+                        <h3>近 30 日涨跌幅统计</h3>
+                        <span id="return-summary">--</span>
+                    </div>
+                    <div class="return-stat-grid">
+                        <div><span>区间涨跌</span><strong id="return-total">--</strong></div>
+                        <div><span>上涨/下跌天数</span><strong id="return-days">--</strong></div>
+                        <div><span>最大单日涨幅</span><strong id="return-max-gain">--</strong></div>
+                        <div><span>最大单日跌幅</span><strong id="return-max-loss">--</strong></div>
+                    </div>
+                    <div id="chart-return-stats" class="detail-chart"></div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">
+                        <h3>今日资金结构</h3>
+                        <span id="money-structure-label">--</span>
+                    </div>
+                    <div class="money-structure-grid">
+                        <div>
+                            <span>超大单</span>
+                            <strong id="super-net">--</strong>
+                        </div>
+                        <div>
+                            <span>大单</span>
+                            <strong id="large-net">--</strong>
+                        </div>
+                        <div>
+                            <span>中单</span>
+                            <strong id="medium-net">--</strong>
+                        </div>
+                        <div>
+                            <span>小单</span>
+                            <strong id="small-net">--</strong>
+                        </div>
+                    </div>
+                    <div id="chart-money-structure" class="mini-chart"></div>
+                    <div id="money-structure-suggestion" class="llm-result"></div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">
+                        <h3>主力建仓/震荡蓄势</h3>
+                        <span id="accumulation-label">--</span>
+                    </div>
+                    <div class="return-stat-grid">
+                        <div><span>建仓评分</span><strong id="accumulation-score">--</strong></div>
+                        <div><span>压力/突破</span><strong id="accumulation-breakout">--</strong></div>
+                        <div><span>支撑/防守</span><strong id="accumulation-support">--</strong></div>
+                        <div><span>10日量价</span><strong id="accumulation-volume">--</strong></div>
+                    </div>
+                    <div id="accumulation-summary" class="llm-result"></div>
+                    <div id="accumulation-checks" class="check-list detail-check-list"></div>
+                </section>
+
+                <section class="section tech-section">
+                    <div class="section-title">
+                        <h3>📐 技术分析</h3>
+                        <span id="tech-risk-level" class="tech-risk-badge">--</span>
+                    </div>
+
+                    <!-- 顶部指标条 -->
+                    <div class="tech-indicator-bar">
+                        <div class="tech-ind" id="tech-ind-ma">
+                            <span class="tech-ind-label">均线</span>
+                            <span class="tech-ind-value" id="tech-ma-arrangement">--</span>
+                        </div>
+                        <div class="tech-ind" id="tech-ind-trend">
+                            <span class="tech-ind-label">趋势</span>
+                            <span class="tech-ind-value" id="tech-trend-dir">--</span>
+                        </div>
+                        <div class="tech-ind">
+                            <span class="tech-ind-label">阶段</span>
+                            <span class="tech-ind-value" id="tech-trend-stage">--</span>
+                        </div>
+                        <div class="tech-ind">
+                            <span class="tech-ind-label">量能</span>
+                            <span class="tech-ind-value" id="tech-vol-trend">--</span>
+                        </div>
+                        <div class="tech-ind">
+                            <span class="tech-ind-label">量比</span>
+                            <span class="tech-ind-value" id="tech-vol-ratio">--</span>
+                        </div>
+                        <div class="tech-ind">
+                            <span class="tech-ind-label">冲高</span>
+                            <span class="tech-ind-value" id="tech-rush-vol">--</span>
+                        </div>
+                        <div class="tech-ind">
+                            <span class="tech-ind-label">MA5偏离</span>
+                            <span class="tech-ind-value" id="tech-bias5">--</span>
+                        </div>
+                        <div class="tech-ind">
+                            <span class="tech-ind-label">MA20偏离</span>
+                            <span class="tech-ind-value" id="tech-bias20">--</span>
+                        </div>
+                    </div>
+
+                    <!-- 图表 + 侧栏 -->
+                    <div class="tech-body">
+                        <div class="tech-chart-col">
+                            <div id="chart-kline" class="tech-kline-chart"></div>
+                            <div id="chart-volume" class="tech-volume-chart"></div>
+                        </div>
+                        <div class="tech-side-col">
+                            <!-- 双头形态卡片 -->
+                            <div id="tech-double-top" class="tech-card tech-dt-card"></div>
+                            <!-- 支撑压力卡片 -->
+                            <div id="tech-sr" class="tech-card tech-sr-card"></div>
+                            <!-- 综合研判卡片 -->
+                            <div id="tech-judgment" class="tech-card tech-judge-card"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">
+                        <h3>消息面</h3>
+                        <span id="news-source">--</span>
+                    </div>
+                    <div id="news-list" class="news-list">加载中...</div>
+                </section>
+            </main>
+
+            <aside class="detail-side">
+                <section class="section decision-panel">
+                    <div class="section-title">
+                        <h3>买入时机</h3>
+                        <span id="updated-at">--</span>
+                    </div>
+                    <div class="decision-summary">
+                        <div>
+                            <span>明日动作</span>
+                            <strong id="tomorrow-action">--</strong>
+                        </div>
+                        <div>
+                            <span>触发状态</span>
+                            <strong id="entry-status">--</strong>
+                        </div>
+                        <div>
+                            <span>触发进度</span>
+                            <strong id="entry-progress">--</strong>
+                        </div>
+                    </div>
+                    <div class="timing-box compact-timing">
+                        <div><span>回踩区间</span><strong id="entry-zone">--</strong></div>
+                        <div><span>下一步</span><strong id="entry-next-action">--</strong></div>
+                        <div><span>建仓理由</span><strong id="tomorrow-reason">--</strong></div>
+                        <div><span>建仓风险</span><strong id="tomorrow-risk">--</strong></div>
+                        <div><span>观察买入区间</span><strong id="buy-zone">--</strong></div>
+                        <div><span>触发条件</span><strong id="trigger">--</strong></div>
+                        <div><span>止损参考</span><strong id="stop-loss">--</strong></div>
+                        <div><span>资金说明</span><strong id="timing-summary">--</strong></div>
+                    </div>
+                    <div id="entry-checks" class="check-list detail-check-list"></div>
+                </section>
+            </aside>
+        </div>
+
+        <div class="analysis-grid">
+            <section class="section">
+                <div class="section-title">
+                    <h3>基础研判</h3>
+                    <span>本地规则</span>
+                </div>
+                <div id="local-analysis" class="llm-result">加载中...</div>
+            </section>
+
+            <section class="section">
+                <div class="section-title">
+                    <h3>Mimo LLM 综合分析</h3>
+                    <span id="llm-status">未调用</span>
+                </div>
+                <button id="llm-btn" type="button" class="secondary-btn">调用 Mimo 分析</button>
+                <div id="llm-result" class="llm-result">点击按钮后生成分析。</div>
+            </section>
+        </div>
+
+        <section class="section llm-history-section">
+            <div class="section-title">
+                <h3>LLM 历史分析</h3>
+                <span id="llm-history-count">--</span>
+            </div>
+            <div id="llm-history" class="llm-history-list">加载中...</div>
+        </section>
+    </div>
+
+    <script>
+        const code = '{{ code }}';
+        let stock = null;
+        let historyChart = null;
+        let structureChart = null;
+        let returnChart = null;
+        let klineChart = null;
+        let techVolChart = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const period = params.get('period') || '即时';
+            document.getElementById('period-selector').value = period;
+            historyChart = echarts.init(document.getElementById('chart-history-large'));
+            structureChart = echarts.init(document.getElementById('chart-money-structure'));
+            returnChart = echarts.init(document.getElementById('chart-return-stats'));
+            klineChart = echarts.init(document.getElementById('chart-kline'));
+            techVolChart = echarts.init(document.getElementById('chart-volume'));
+            window.addEventListener('resize', () => {
+                historyChart.resize();
+                structureChart.resize();
+                returnChart.resize();
+                if (klineChart) klineChart.resize();
+                if (techVolChart) techVolChart.resize();
+            });
+            document.getElementById('refresh-btn').addEventListener('click', loadDetail);
+            document.getElementById('watchlist-btn').addEventListener('click', addToWatchlist);
+            document.getElementById('period-selector').addEventListener('change', loadDetail);
+            document.getElementById('llm-btn').addEventListener('click', loadLlm);
+            loadDetail();
+        });
+
+        async function loadDetail() {
+            const period = encodeURIComponent(document.getElementById('period-selector').value);
+            const resp = await fetch(`/api/stock/${code}?period=${period}`);
+            stock = await resp.json();
+            if (stock.error) {
+                document.getElementById('stock-title').textContent = `${code} 未找到`;
+                return;
+            }
+            renderDetail();
+            loadLlmLogs();
+        }
+
+        async function addToWatchlist() {
+            const status = document.getElementById('watchlist-status');
+            if (!stock) {
+                status.textContent = '数据未加载';
+                return;
+            }
+            try {
+                await fetch('/api/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: stock.code, source: 'detail', item: stock }),
+                });
+                status.textContent = '已加入观察池';
+            } catch (err) {
+                status.textContent = '加入失败';
+            }
+        }
+
+        function renderDetail() {
+            document.getElementById('stock-title').textContent = `${stock.code} ${stock.name}`;
+            document.getElementById('price').textContent = stock.price ? stock.price.toFixed(2) : '--';
+            document.getElementById('pct-change').textContent = formatPct(stock.pct_change);
+            document.getElementById('pct-change').className = `card-value ${stock.pct_change >= 0 ? 'profit' : 'loss'}`;
+            document.getElementById('main-net').textContent = formatAmount(stock.main_net);
+            document.getElementById('main-net').className = `card-value ${stock.main_net >= 0 ? 'profit' : 'loss'}`;
+            document.getElementById('score').textContent = stock.score ? stock.score.toFixed(1) : '--';
+            document.getElementById('tomorrow-score').textContent = stock.tomorrow_score ? stock.tomorrow_score.toFixed(1) : '--';
+            renderMoneyStructure();
+            renderAccumulation();
+            renderTechAnalysis();
+
+            const timing = stock.buy_timing || {};
+            document.getElementById('timing-level').textContent = stock.tomorrow_action || timing.level || '--';
+            document.getElementById('tomorrow-action').textContent = stock.tomorrow_action || '--';
+            document.getElementById('entry-status').textContent = stock.entry_status || '--';
+            document.getElementById('entry-progress').textContent = `${stock.entry_passed_count || 0}/${stock.entry_total_count || 0}`;
+            document.getElementById('entry-zone').textContent = stock.entry_pullback_zone || '--';
+            document.getElementById('entry-next-action').textContent = stock.entry_next_action || '--';
+            document.getElementById('tomorrow-reason').textContent = stock.tomorrow_reason || '--';
+            document.getElementById('tomorrow-risk').textContent = stock.tomorrow_risk || '--';
+            document.getElementById('buy-zone').textContent = timing.buy_zone || '--';
+            document.getElementById('trigger').textContent = timing.trigger || '--';
+            document.getElementById('stop-loss').textContent = timing.stop_loss || '--';
+            document.getElementById('timing-summary').textContent = timing.summary || '--';
+            document.getElementById('updated-at').textContent = stock.updated_at || '--';
+            renderEntryChecks(stock.entry_checks || []);
+
+            const history = stock.flow_history || {};
+            document.getElementById('history-source').textContent = history.source === 'estimated' ? '估算资金流' : '资金流接口';
+            renderHistoryChart(history.items || []);
+            renderReturnStats(stock.return_stats || {});
+
+            const ai = stock.ai || {};
+            renderNews(stock.news || {});
+            document.getElementById('local-analysis').innerHTML = `
+                <p>${ai.summary || ''}</p>
+                <h4>入选理由</h4>
+                <ul>${(ai.strengths || []).map(x => `<li>${x}</li>`).join('')}</ul>
+                <h4>风险提示</h4>
+                <ul>${(ai.risks || []).map(x => `<li>${x}</li>`).join('')}</ul>
+                <h4>观察点</h4>
+                <ul>${(ai.watch || []).map(x => `<li>${x}</li>`).join('')}</ul>
+            `;
+        }
+
+        function renderAccumulation() {
+            const data = stock.accumulation || stock;
+            const score = Number(data.accumulation_score || 0);
+            document.getElementById('accumulation-label').textContent = `${data.accumulation_label || '--'} / ${score ? score.toFixed(1) : '--'}`;
+            document.getElementById('accumulation-score').textContent = score ? score.toFixed(1) : '--';
+            document.getElementById('accumulation-score').className = score >= 62 ? 'profit' : score < 45 ? 'loss' : '';
+            document.getElementById('accumulation-breakout').textContent =
+                `${formatPrice(data.resistance_price)} / ${formatPrice(data.breakout_price)}`;
+            document.getElementById('accumulation-support').textContent =
+                `${formatPrice(data.support_price)} / ${formatPrice(data.stop_loss_price)}`;
+            document.getElementById('accumulation-volume').textContent =
+                `${Number(data.up_down_volume_ratio_10d || 0).toFixed(2)}x`;
+            document.getElementById('accumulation-summary').innerHTML = `
+                <p>${data.accumulation_summary || '暂无建仓量价分析。'}</p>
+                <div class="metric-grid">
+                    <div><span>5日上涨量/下跌量</span><strong>${Number(data.up_down_volume_ratio_5d || 0).toFixed(2)}x</strong></div>
+                    <div><span>20日上涨量/下跌量</span><strong>${Number(data.up_down_volume_ratio_20d || 0).toFixed(2)}x</strong></div>
+                    <div><span>距20日高点</span><strong>${formatPct(data.distance_to_20d_high)}</strong></div>
+                    <div><span>距MA20</span><strong>${formatPct(data.distance_to_ma20)}</strong></div>
+                    <div><span>10日涨跌天数</span><strong>${data.positive_days_10d || 0}/${data.negative_days_10d || 0}</strong></div>
+                    <div><span>数据说明</span><strong>${data.accumulation_reliability || '量价代理'}</strong></div>
+                </div>
+            `;
+            const checks = data.accumulation_checks || [];
+            const box = document.getElementById('accumulation-checks');
+            if (!checks.length) {
+                box.innerHTML = '';
+                return;
+            }
+            box.innerHTML = checks.map(item => `
+                <div class="check-item ${item.passed ? 'check-ok' : 'check-wait'}">
+                    <strong>${item.passed ? '通过' : '等待'} · ${item.name}</strong>
+                    <span>${item.detail || ''}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderTechAnalysis() {
+            const tech = stock.tech_analysis;
+            if (!tech || !tech.chart) return;
+
+            const ma = tech.ma || {};
+            const trend = tech.trend || {};
+            const vol = tech.volume || {};
+            const bias = tech.bias || {};
+            const dt = tech.double_top || {};
+            const sr = tech.support_resistance || {};
+            const judgment = tech.judgment || {};
+
+            // ---- 风险标签 ----
+            const riskEl = document.getElementById('tech-risk-level');
+            riskEl.textContent = `风险 ${judgment.risk_level || '--'}`;
+            const rl = judgment.risk_level || '';
+            riskEl.className = 'tech-risk-badge ' + (rl === '高' || rl === '极高' ? 'risk-high' : rl === '中' ? 'risk-mid' : 'risk-low');
+
+            // ---- 指标条 ----
+            setIndicator('tech-ma-arrangement', ma.arrangement, ma.arrangement === '多头排列' ? 'profit' : ma.arrangement === '空头排列' ? 'loss' : '');
+            setIndicator('tech-trend-dir', trend.direction);
+            setIndicator('tech-trend-stage', trend.stage);
+            setIndicator('tech-vol-trend', `${vol.vol_trend || '--'} (${(vol.vol_trend_ratio || 0).toFixed(2)}x)`);
+            setIndicator('tech-vol-ratio', `${(vol.today_ratio_5 || 0).toFixed(2)}x`);
+            const rushText = vol.rush_vol_match || '--';
+            setIndicator('tech-rush-vol', rushText, rushText.includes('缩量') ? 'loss' : rushText.includes('放量') ? 'profit' : '');
+            setIndicator('tech-bias5', `${(bias.ma5_bias || 0) >= 0 ? '+' : ''}${(bias.ma5_bias || 0).toFixed(2)}%`, Math.abs(bias.ma5_bias || 0) > 10 ? 'loss' : '');
+            setIndicator('tech-bias20', `${(bias.ma20_bias || 0) >= 0 ? '+' : ''}${(bias.ma20_bias || 0).toFixed(2)}%`, Math.abs(bias.ma20_bias || 0) > 10 ? 'loss' : '');
+
+            function setIndicator(id, text, cls) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.textContent = text || '--';
+                el.className = 'tech-ind-value' + (cls ? ' ' + cls : '');
+            }
+
+            // ---- 双头形态卡片 ----
+            const dtBox = document.getElementById('tech-double-top');
+            if (dt.detected) {
+                const levelCls = dt.status === '双头确认' ? 'dt-level-danger' : dt.status === '疑似成型' ? 'dt-level-warn' : dt.status === '双头失败' ? 'dt-level-ok' : '';
+                const statusCls = dt.status === '双头确认' ? 'dt-danger' : dt.status === '疑似成型' ? 'dt-warn' : dt.status === '双头失败' ? 'dt-ok' : 'dt-neutral';
+                dtBox.className = `tech-card tech-dt-card ${levelCls}`;
+                dtBox.innerHTML = `
+                    <div class="tech-card-title">🔍 双头形态 <span class="dt-status ${statusCls}">${dt.status}</span></div>
+                    <div class="dt-grid">
+                        <div class="dt-row"><span class="dt-row-label">A 点</span><span class="dt-row-value">${dt.a_price} (${dt.a_date})</span></div>
+                        <div class="dt-row"><span class="dt-row-label">B 点</span><span class="dt-row-value">${dt.b_price} (${dt.b_date})</span></div>
+                        <div class="dt-row"><span class="dt-row-label">颈线</span><span class="dt-row-value">${dt.neckline} ${dt.neckline_date || ''}</span></div>
+                        <div class="dt-row"><span class="dt-row-label">目标位</span><span class="dt-row-value">${dt.target}</span></div>
+                        <div class="dt-row"><span class="dt-row-label">量能</span><span class="dt-row-value">${dt.vol_match}</span></div>
+                        <div class="dt-row"><span class="dt-row-label">价差</span><span class="dt-row-value">${dt.diff_pct}%</span></div>
+                    </div>
+                    <div class="dt-summary">${dt.detail}</div>
+                `;
+            } else {
+                dtBox.className = 'tech-card tech-dt-card dt-level-ok';
+                dtBox.innerHTML = `
+                    <div class="tech-card-title">🔍 双头形态 <span class="dt-status dt-ok">未触发</span></div>
+                    <div class="dt-summary">${dt.detail || '未检测到双头形态'}</div>
+                `;
+            }
+
+            // ---- 支撑压力卡片 ----
+            const srBox = document.getElementById('tech-sr');
+            let srHtml = '<div class="tech-card-title">📏 关键价位</div>';
+            if (sr.resistance && sr.resistance.length) {
+                srHtml += '<div class="sr-group"><div class="sr-group-header"><span class="sr-dot sr-dot-up"></span><span class="sr-group-label">压力位</span></div><div class="sr-pills">';
+                sr.resistance.forEach(r => {
+                    srHtml += `<span class="sr-pill sr-pill-up">${r.price} <span class="sr-pill-label">${r.label || r.date || ''}</span></span>`;
+                });
+                srHtml += '</div></div>';
+            }
+            if (sr.support && sr.support.length) {
+                srHtml += '<div class="sr-group"><div class="sr-group-header"><span class="sr-dot sr-dot-dn"></span><span class="sr-group-label">支撑位</span></div><div class="sr-pills">';
+                sr.support.forEach(s => {
+                    srHtml += `<span class="sr-pill sr-pill-dn">${s.price} <span class="sr-pill-label">${s.label || s.date || ''}</span></span>`;
+                });
+                srHtml += '</div></div>';
+            }
+            srBox.innerHTML = srHtml;
+
+            // ---- 研判卡片 ----
+            const jBox = document.getElementById('tech-judgment');
+            jBox.innerHTML = `
+                <div class="tech-card-title">💡 综合研判</div>
+                <div class="judge-text">${judgment.conclusion || '暂无结论'}</div>
+                <div class="judge-actions">
+                    <div class="judge-action-row">
+                        <div class="judge-action-icon icon-hold">📌</div>
+                        <div class="judge-action-text">
+                            <span class="judge-action-label">持仓操作</span>
+                            <span class="judge-action-value">${judgment.action_hold || '--'}</span>
+                        </div>
+                    </div>
+                    <div class="judge-action-row">
+                        <div class="judge-action-icon icon-buy">🎯</div>
+                        <div class="judge-action-text">
+                            <span class="judge-action-label">买入建议</span>
+                            <span class="judge-action-value">${judgment.action_buy || '--'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // ---- K 线图 ----
+            const chart = tech.chart;
+            const dates = chart.dates || [];
+            const ohlc = chart.ohlc || [];
+            const volumes = chart.volumes || [];
+            const upColor = '#d64545';
+            const downColor = '#1f9d55';
+
+            // 支撑压力 markLine
+            const markLineData = [];
+            (chart.resistance_lines || []).forEach(r => {
+                markLineData.push({
+                    yAxis: r.price,
+                    label: { formatter: r.label, position: 'end', fontSize: 10, color: '#d64545', distance: 4 },
+                    lineStyle: { color: '#d64545', type: 'dashed', width: 1, opacity: 0.5 },
+                });
+            });
+            (chart.support_lines || []).forEach(s => {
+                markLineData.push({
+                    yAxis: s.price,
+                    label: { formatter: s.label, position: 'end', fontSize: 10, color: '#1f9d55', distance: 4 },
+                    lineStyle: { color: '#1f9d55', type: 'dashed', width: 1, opacity: 0.5 },
+                });
+            });
+
+            klineChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross', crossStyle: { color: '#8a96a8' } },
+                    backgroundColor: 'rgba(255,255,255,0.96)',
+                    borderColor: '#e5e7eb',
+                    textStyle: { fontSize: 12, color: '#1f2933' },
+                    formatter: params => {
+                        if (!params.length) return '';
+                        const k = params.find(p => p.seriesName === 'K线');
+                        if (!k) return '';
+                        const d = k.data;
+                        const color = d[1] >= d[0] ? upColor : downColor;
+                        const lines = params.filter(p => p.seriesName !== 'K线' && p.value != null);
+                        let html = `<div style="font-weight:600;margin-bottom:4px">${k.axisValue}</div>`;
+                        html += `<div style="color:${color}">开 ${d[0]} &nbsp; 收 ${d[1]} &nbsp; 低 ${d[2]} &nbsp; 高 ${d[3]}</div>`;
+                        lines.forEach(l => {
+                            html += `<div style="color:${l.color};font-size:11px">${l.seriesName}: ${l.value}</div>`;
+                        });
+                        return html;
+                    },
+                },
+                legend: {
+                    data: ['MA5', 'MA10', 'MA20'],
+                    top: 2, right: 10,
+                    textStyle: { fontSize: 11, color: '#637083' },
+                    itemWidth: 14, itemHeight: 2,
+                },
+                grid: { left: 58, right: 72, top: 28, bottom: 32 },
+                xAxis: {
+                    type: 'category', data: dates,
+                    axisLabel: { fontSize: 10, color: '#8a96a8' },
+                    axisLine: { lineStyle: { color: '#e5e7eb' } },
+                    axisTick: { show: false },
+                },
+                yAxis: {
+                    type: 'value', scale: true,
+                    axisLabel: { fontSize: 10, color: '#8a96a8' },
+                    splitLine: { lineStyle: { color: '#f3f4f6' } },
+                    axisLine: { show: false },
+                },
+                series: [
+                    {
+                        name: 'K线', type: 'candlestick', data: ohlc,
+                        itemStyle: {
+                            color: upColor, color0: downColor,
+                            borderColor: upColor, borderColor0: downColor,
+                        },
+                        markLine: { silent: true, symbol: 'none', data: markLineData },
+                    },
+                    { name: 'MA5', type: 'line', data: chart.ma5, smooth: true, lineStyle: { width: 1.2, color: '#e6a817' }, symbol: 'none' },
+                    { name: 'MA10', type: 'line', data: chart.ma10, smooth: true, lineStyle: { width: 1.2, color: '#2d69be' }, symbol: 'none' },
+                    { name: 'MA20', type: 'line', data: chart.ma20, smooth: true, lineStyle: { width: 1.2, color: '#9b59b6' }, symbol: 'none' },
+                ],
+            }, true);
+
+            // ---- 量能柱状图 ----
+            const volMa5 = [];
+            const volMa10 = [];
+            for (let i = 0; i < volumes.length; i++) {
+                if (i >= 4) {
+                    let s = 0; for (let j = i - 4; j <= i; j++) s += volumes[j];
+                    volMa5.push(Math.round(s / 5));
+                } else { volMa5.push(null); }
+                if (i >= 9) {
+                    let s = 0; for (let j = i - 9; j <= i; j++) s += volumes[j];
+                    volMa10.push(Math.round(s / 10));
+                } else { volMa10.push(null); }
+            }
+
+            techVolChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(255,255,255,0.96)',
+                    borderColor: '#e5e7eb',
+                    textStyle: { fontSize: 12, color: '#1f2933' },
+                    formatter: params => {
+                        const p = params[0];
+                        if (!p) return '';
+                        return `<b>${p.axisValue}</b><br/>成交量: ${formatAmount(p.value)}`;
+                    },
+                },
+                legend: {
+                    data: ['Vol MA5', 'Vol MA10'],
+                    top: 2, right: 10,
+                    textStyle: { fontSize: 10, color: '#8a96a8' },
+                    itemWidth: 14, itemHeight: 2,
+                },
+                grid: { left: 58, right: 72, top: 22, bottom: 24 },
+                xAxis: {
+                    type: 'category', data: dates,
+                    axisLabel: { fontSize: 10, color: '#8a96a8' },
+                    axisLine: { lineStyle: { color: '#e5e7eb' } },
+                    axisTick: { show: false },
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLabel: { fontSize: 10, color: '#8a96a8', formatter: v => formatAmount(v) },
+                    splitLine: { lineStyle: { color: '#f3f4f6' } },
+                    axisLine: { show: false },
+                },
+                series: [
+                    {
+                        type: 'bar', barMaxWidth: 12,
+                        data: volumes.map((v, i) => ({
+                            value: v,
+                            itemStyle: {
+                                color: ohlc[i] && ohlc[i][1] >= ohlc[i][0]
+                                    ? 'rgba(214,69,69,0.65)' : 'rgba(31,157,85,0.65)',
+                                borderRadius: [2, 2, 0, 0],
+                            },
+                        })),
+                    },
+                    { name: 'Vol MA5', type: 'line', data: volMa5, lineStyle: { width: 1.2, color: '#e6a817' }, symbol: 'none' },
+                    { name: 'Vol MA10', type: 'line', data: volMa10, lineStyle: { width: 1.2, color: '#2d69be' }, symbol: 'none' },
+                ],
+            }, true);
+        }
+
+        function renderMoneyStructure() {
+            document.getElementById('money-structure-label').textContent = `${stock.money_structure_label || '--'} / ${Number(stock.money_structure_score || 0).toFixed(1)}`;
+            setMoneyValue('super-net', stock.super_net);
+            setMoneyValue('large-net', stock.large_net);
+            setMoneyValue('medium-net', stock.medium_net);
+            setMoneyValue('small-net', stock.small_net);
+            document.getElementById('money-structure-suggestion').innerHTML = `
+                <p>${stock.money_structure_suggestion || '暂无资金结构建议。'}</p>
+                <div class="metric-grid">
+                    <div><span>超大单+大单</span><strong class="${stock.big_order_net >= 0 ? 'profit' : 'loss'}">${formatAmount(stock.big_order_net)}</strong></div>
+                    <div><span>小单代理</span><strong class="${stock.retail_proxy_net >= 0 ? 'profit' : 'loss'}">${formatAmount(stock.retail_proxy_net)}</strong></div>
+                    <div><span>大单占成交额</span><strong>${formatPct(stock.big_order_pct)}</strong></div>
+                    <div><span>小单占成交额</span><strong>${formatPct(stock.small_order_pct)}</strong></div>
+                </div>
+            `;
+            structureChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: params => {
+                        const p = params[0];
+                        return `${p.axisValue}<br/>${formatAmount(p.value)}`;
+                    },
+                },
+                grid: { left: 74, right: 20, top: 18, bottom: 28 },
+                xAxis: { type: 'value', axisLabel: { formatter: v => formatAmount(v) } },
+                yAxis: { type: 'category', data: ['小单', '中单', '大单', '超大单'] },
+                series: [{
+                    type: 'bar',
+                    data: [stock.small_net || 0, stock.medium_net || 0, stock.large_net || 0, stock.super_net || 0],
+                    itemStyle: { color: params => params.value >= 0 ? '#d64545' : '#1f9d55' },
+                }],
+            }, true);
+        }
+
+        function setMoneyValue(id, value) {
+            const el = document.getElementById(id);
+            el.textContent = formatAmount(value);
+            el.className = Number(value || 0) >= 0 ? 'profit' : 'loss';
+        }
+
+        function renderEntryChecks(checks) {
+            const box = document.getElementById('entry-checks');
+            if (!checks.length) {
+                box.innerHTML = '';
+                return;
+            }
+            box.innerHTML = checks.map(item => `
+                <div class="check-item ${item.passed ? 'check-ok' : 'check-wait'}">
+                    <strong>${item.passed ? '通过' : '等待'} · ${item.name}</strong>
+                    <span>${item.detail || ''}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderNews(news) {
+            const list = document.getElementById('news-list');
+            const items = news.items || [];
+            document.getElementById('news-source').textContent = items.length
+                ? `${news.summary || '消息面'} / ${Number(news.news_score || 0).toFixed(1)}分 / ${items.length}条`
+                : '暂无消息';
+            if (!items.length) {
+                list.innerHTML = '<div class="empty-panel">暂无可用消息</div>';
+                return;
+            }
+            list.innerHTML = items.map(item => {
+                const title = item.title || '';
+                const url = item.url || '';
+                const titleHtml = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
+                const types = (item.event_types || []).join('、') || '未分类';
+                const sentiment = item.sentiment || 'neutral';
+                return `<div class="news-item">
+                    <div class="news-title">${titleHtml}</div>
+                    <div class="news-meta">${item.date || ''} ${item.source || ''} · ${sentiment} · ${types} · ${Number(item.news_score || 0).toFixed(0)}分</div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderHistoryChart(items) {
+            if (!items.length) {
+                historyChart.clear();
+                historyChart.setOption({
+                    title: { text: '暂无资金流历史', left: 'center', top: 'center', textStyle: { color: '#8a96a8', fontSize: 14 } }
+                });
+                return;
+            }
+            historyChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: params => {
+                        const p = params[0];
+                        return `${p.axisValue}<br/>主力净额: ${formatAmount(p.value)}`;
+                    }
+                },
+                grid: { left: 72, right: 24, top: 24, bottom: 36 },
+                xAxis: { type: 'category', data: items.map(x => String(x.date).slice(5)) },
+                yAxis: { type: 'value', axisLabel: { formatter: v => formatAmount(v) } },
+                series: [{
+                    type: 'bar',
+                    data: items.map(x => x.main_net || 0),
+                    itemStyle: { color: params => params.value >= 0 ? '#d64545' : '#1f9d55' },
+                }]
+            }, true);
+        }
+
+        function renderReturnStats(data) {
+            const items = data.items || [];
+            const summary = data.summary || {};
+            document.getElementById('return-summary').textContent = items.length ? `${items.length} 个交易日` : '--';
+            document.getElementById('return-total').textContent = formatPct(summary.total_return);
+            document.getElementById('return-total').className = Number(summary.total_return || 0) >= 0 ? 'profit' : 'loss';
+            document.getElementById('return-days').textContent = `${summary.up_days || 0}/${summary.down_days || 0}`;
+            document.getElementById('return-max-gain').textContent = formatPct(summary.max_daily_gain);
+            document.getElementById('return-max-gain').className = 'profit';
+            document.getElementById('return-max-loss').textContent = formatPct(summary.max_daily_loss);
+            document.getElementById('return-max-loss').className = 'loss';
+            if (!items.length) {
+                returnChart.clear();
+                return;
+            }
+            returnChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: params => {
+                        const daily = params[0];
+                        const range = params[1];
+                        return `${daily.axisValue}<br/>日涨跌: ${formatPct(daily.value)}<br/>区间涨跌: ${formatPct(range.value)}`;
+                    },
+                },
+                legend: { data: ['日涨跌幅', '区间累计'] },
+                grid: { left: 52, right: 42, top: 44, bottom: 36 },
+                xAxis: { type: 'category', data: items.map(x => String(x.date).slice(5)) },
+                yAxis: { type: 'value', axisLabel: { formatter: v => `${v}%` } },
+                series: [
+                    {
+                        name: '日涨跌幅',
+                        type: 'bar',
+                        data: items.map(x => Number(x.pct_change || 0).toFixed(2)),
+                        itemStyle: { color: params => Number(params.value) >= 0 ? '#d64545' : '#1f9d55' },
+                    },
+                    {
+                        name: '区间累计',
+                        type: 'line',
+                        smooth: true,
+                        data: items.map(x => Number(x.range_return || 0).toFixed(2)),
+                        lineStyle: { color: '#2d69be', width: 2 },
+                        itemStyle: { color: '#2d69be' },
+                    },
+                ],
+            }, true);
+        }
+
+        async function loadLlm() {
+            const btn = document.getElementById('llm-btn');
+            const result = document.getElementById('llm-result');
+            const status = document.getElementById('llm-status');
+            btn.disabled = true;
+            result.textContent = 'Mimo 正在综合资金面、技术面和消息面分析...';
+            status.textContent = '分析中';
+            const period = encodeURIComponent(document.getElementById('period-selector').value);
+            try {
+                const resp = await fetch(`/api/stock/${code}/llm?period=${period}`, { method: 'POST' });
+                const data = await resp.json();
+                result.textContent = data.analysis || '无返回';
+                status.textContent = data.enabled ? `${data.provider} / ${data.model}` : '调用失败';
+                loadLlmLogs();
+            } catch (err) {
+                result.textContent = `调用失败：${err}`;
+                status.textContent = '调用失败';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function loadLlmLogs() {
+            const resp = await fetch(`/api/stock/${code}/llm/logs?limit=8`);
+            const data = await resp.json();
+            const items = data.items || [];
+            document.getElementById('llm-history-count').textContent = `${items.length} 条`;
+            const box = document.getElementById('llm-history');
+            if (!items.length) {
+                box.innerHTML = '<div class="empty-panel">暂无历史 LLM 分析</div>';
+                return;
+            }
+            box.innerHTML = items.map(item => `
+                <div class="llm-history-item">
+                    <div class="news-meta">${item.analysis_time || ''} · ${item.provider || ''} / ${item.model || ''} · 价格 ${item.price || '-'}</div>
+                    <strong>${item.prompt_summary || ''}</strong>
+                    <p>${item.analysis || ''}</p>
+                </div>
+            `).join('');
+        }
+
+        function formatAmount(value) {
+            const val = Number(value || 0);
+            const sign = val < 0 ? '-' : '';
+            const abs = Math.abs(val);
+            if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`;
+            if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`;
+            return `${sign}${abs.toFixed(0)}`;
+        }
+
+        function formatPct(value) {
+            const val = Number(value || 0);
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+        }
+
+        function formatPrice(value) {
+            const val = Number(value || 0);
+            return val ? val.toFixed(2) : '--';
+        }
+    </script>
+</body>
+</html>

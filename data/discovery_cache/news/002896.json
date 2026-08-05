@@ -1,0 +1,103 @@
+{
+  "code": "002896",
+  "source": "eastmoney",
+  "updated_at": "2026-06-24 18:01:07",
+  "items": [
+    {
+      "title": "大宗交易：中大力德成交2135.25万元，折价12.85%（6-18）",
+      "date": "2026-06-18 16:37:51",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606183776171190.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "大宗交易：中大力德成交202.64万元，折价10.11%（6-16）",
+      "date": "2026-06-16 16:35:11",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606163773066277.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "大宗交易：中大力德成交669.29万元，折价12.38%（6-15）",
+      "date": "2026-06-15 16:33:55",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606153771571174.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德(002896)龙虎榜数据(06-11)",
+      "date": "2026-06-11 16:26:55",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606113768291784.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德龙虎榜数据（6月11日）",
+      "date": "2026-06-11 17:32:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606113768397769.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德：股票交易异常波动公告",
+      "date": "2026-06-08 21:27:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606083763903075.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德6月8日龙虎榜数据",
+      "date": "2026-06-08 17:34:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606083763701773.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德(002896)龙虎榜数据(06-08)",
+      "date": "2026-06-08 16:30:49",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606083763602575.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德成交额创2025年9月19日以来新高",
+      "date": "2026-06-08 11:15:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606083763165324.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中大力德：近期控股股东及其一致行动人减持公司总股本的0.51%",
+      "date": "2026-06-08 18:55:05",
+      "source": "财联社",
+      "url": "http://finance.eastmoney.com/a/202606083763763791.html",
+      "event_types": [
+        "减持"
+      ],
+      "sentiment": "negative",
+      "news_score": -12
+    }
+  ],
+  "news_score": -12.0,
+  "summary": "消息面略偏谨慎",
+  "positive_count": 0,
+  "negative_count": 1
+}

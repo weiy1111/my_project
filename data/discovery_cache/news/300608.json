@@ -1,0 +1,109 @@
+{
+  "code": "300608",
+  "source": "eastmoney",
+  "updated_at": "2026-06-10 14:54:24",
+  "items": [
+    {
+      "title": "思特奇与武汉云签订合作协议 共筑武汉城市算力网",
+      "date": "2026-06-01 12:54:13",
+      "source": "人民财讯",
+      "url": "http://finance.eastmoney.com/a/202606013755878212.html",
+      "event_types": [
+        "订单/中标",
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 16
+    },
+    {
+      "title": "思特奇：关于提前归还部分募集资金的公告",
+      "date": "2026-05-26 21:17:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605263749961288.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "思特奇：关于“思特转债”即将停止转股暨赎回前最后一个交易日的重要提示性公告",
+      "date": "2026-05-27 21:38:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605273751617181.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "思特奇：关于提前赎回“思特转债”暨即将停止转股的重要提示性公告",
+      "date": "2026-05-25 21:45:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605253748497477.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "思特奇成交额创2024年1月5日以来新高",
+      "date": "2026-05-20 11:34:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202605203743239960.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "思特奇20cm涨停！华为昇腾Token工厂落地，板块行情正式启动？",
+      "date": "2026-05-19 11:32:47",
+      "source": "每日经济新闻",
+      "url": "http://finance.eastmoney.com/a/202605193741762621.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "思特奇：关于提前赎回“思特转债”的第七次提示性公告",
+      "date": "2026-05-17 17:40:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605173739746594.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "百度财报超预期！AI业务成第一增长曲线，应用端成为下一个主战场，思特奇20cm涨停封板",
+      "date": "2026-05-19 13:06:58",
+      "source": "每日经济新闻",
+      "url": "http://stock.eastmoney.com/a/202605193741776751.html",
+      "event_types": [
+        "业绩增长",
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 16
+    },
+    {
+      "title": "思特奇：关于提前赎回“思特转债”的第二次提示性公告",
+      "date": "2026-05-10 21:25:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605103732429043.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "AI智能体概念盘初走强 南兴股份一字涨停",
+      "date": "2026-06-10 09:37:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202606103766091229.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    }
+  ],
+  "news_score": 40.0,
+  "summary": "消息面偏积极",
+  "positive_count": 3,
+  "negative_count": 0
+}

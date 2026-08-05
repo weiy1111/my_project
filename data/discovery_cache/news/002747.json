@@ -1,0 +1,111 @@
+{
+  "code": "002747",
+  "source": "eastmoney",
+  "updated_at": "2026-06-09 18:46:46",
+  "items": [
+    {
+      "title": "机器人概念表现活跃 埃斯顿2连板",
+      "date": "2026-06-09 10:05:56",
+      "source": "上海证券报·中国证券网",
+      "url": "http://finance.eastmoney.com/a/202606093764717855.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "埃斯顿：股票交易异常波动公告",
+      "date": "2026-06-08 21:19:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606083763893446.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "机器人概念反复活跃 埃斯顿2连板",
+      "date": "2026-06-09 09:49:02",
+      "source": "东方财富Choice数据",
+      "url": "http://finance.eastmoney.com/a/202606093764595343.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "机器人概念反复活跃 埃斯顿2连板",
+      "date": "2026-06-09 09:46:41",
+      "source": "财联社",
+      "url": "http://finance.eastmoney.com/a/202606093764625659.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "埃斯顿：公司A股股票交易异常波动",
+      "date": "2026-06-08 19:06:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202606083763782315.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "海外机构调研股名单 埃斯顿最受关注",
+      "date": "2026-06-08 17:12:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606083763667221.html",
+      "event_types": [
+        "机构调研"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "港股异动 | 埃斯顿AH股双双大涨",
+      "date": "2026-06-08 11:23:04",
+      "source": "上海证券报·中国证券网",
+      "url": "http://finance.eastmoney.com/a/202606083763173492.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "机器人板块震荡走强 埃斯顿涨停",
+      "date": "2026-06-08 10:31:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606083763110751.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "埃斯顿(002747)龙虎榜数据(06-08)",
+      "date": "2026-06-08 16:30:40",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606083763601965.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "埃斯顿涨停，机构净卖出5515.77万元，深股通净买入4383.55万元",
+      "date": "2026-06-08 17:34:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606083763698160.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 40.0,
+  "summary": "消息面偏积极",
+  "positive_count": 5,
+  "negative_count": 0
+}

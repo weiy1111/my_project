@@ -1,0 +1,103 @@
+{
+  "code": "300308",
+  "source": "eastmoney",
+  "updated_at": "2026-06-22 15:31:55",
+  "items": [
+    {
+      "title": "中际旭创成交额超350亿元",
+      "date": "2026-06-22 15:07:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606223777979770.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创成交额超300亿元",
+      "date": "2026-06-22 13:27:23",
+      "source": "东方财富Choice数据",
+      "url": "http://finance.eastmoney.com/a/202606223777850798.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创成交额超250亿元",
+      "date": "2026-06-22 11:21:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606223777747281.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创成交额超200亿元",
+      "date": "2026-06-22 10:53:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606223777716635.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创成交额达200亿元",
+      "date": "2026-06-22 10:35:34",
+      "source": "界面新闻",
+      "url": "http://finance.eastmoney.com/a/202606223777650529.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创成交额超150亿元",
+      "date": "2026-06-22 10:20:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606223777565377.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创成交额超100亿元",
+      "date": "2026-06-22 10:07:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606223777484190.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创：公司核心原材料供应稳定",
+      "date": "2026-06-21 20:52:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606213777071647.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "中际旭创、兆易创新成交额超300亿元",
+      "date": "2026-06-22 14:31:40",
+      "source": "上海证券报·中国证券网",
+      "url": "http://finance.eastmoney.com/a/202606223777939972.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "AI算力缔造新标杆！中际旭创市值、股价双超茅台",
+      "date": "2026-06-22 11:22:00",
+      "source": "海报新闻",
+      "url": "http://finance.eastmoney.com/a/202606223777754537.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    }
+  ],
+  "news_score": 8.0,
+  "summary": "消息面略偏积极",
+  "positive_count": 1,
+  "negative_count": 0
+}

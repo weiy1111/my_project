@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>板块热度</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>大科技板块热度</h1>
+                <p>半导体、CPO、PCB、机器人、AI 软件等子板块资金与强度对比</p>
+            </div>
+            <div class="header-right">
+                <select id="sort-selector">
+                    <option value="score">综合评分</option>
+                    <option value="tomorrow">明日建仓</option>
+                    <option value="flow_persistence">资金持续</option>
+                    <option value="pullback">回踩机会</option>
+                </select>
+                <button id="refresh-btn" type="button">刷新</button>
+                <button id="save-btn" type="button">保存快照</button>
+                <a class="back-link" href="/">返回首页</a>
+            </div>
+        </header>
+
+        <div class="cards" id="sector-cards"></div>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>板块明细</h3>
+                <span id="updated-at">--</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>板块</th>
+                            <th>热度</th>
+                            <th>风险</th>
+                            <th>ETF动作</th>
+                            <th>短期</th>
+                            <th>长期</th>
+                            <th>股票数</th>
+                            <th>上涨/下跌</th>
+                            <th>平均涨跌</th>
+                            <th>今日资金</th>
+                            <th>3日资金</th>
+                            <th>30日资金</th>
+                            <th>最强股票</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sector-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="section sector-stock-section">
+            <div class="section-title">
+                <h3>板块预测分析</h3>
+                <span id="selected-sector">--</span>
+            </div>
+            <div id="sector-prediction" class="sector-prediction"></div>
+            <div id="sector-stocks" class="sector-stock-grid"></div>
+        </section>
+    </div>
+
+    <script>
+        let sectors = [];
+        let selectedKey = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh-btn').addEventListener('click', () => loadSectors(false));
+            document.getElementById('save-btn').addEventListener('click', () => loadSectors(true));
+            document.getElementById('sort-selector').addEventListener('change', () => loadSectors(false));
+            loadSectors(false);
+        });
+
+        async function loadSectors(save) {
+            const sortBy = encodeURIComponent(document.getElementById('sort-selector').value);
+            const resp = await fetch(`/api/sectors?sort_by=${sortBy}${save ? '&save=1' : ''}`);
+            const data = await resp.json();
+            sectors = data.items || [];
+            selectedKey = selectedKey && sectors.some(x => x.key === selectedKey) ? selectedKey : (sectors[0] ? sectors[0].key : '');
+            document.getElementById('updated-at').textContent = save && data.saved ? `${data.updated_at} / 已保存 ${data.saved}` : (data.updated_at || '--');
+            renderCards();
+            renderTable();
+            renderSectorStocks();
+        }
+
+        function renderCards() {
+            const top = sectors.slice(0, 4);
+            const box = document.getElementById('sector-cards');
+            if (!top.length) {
+                box.innerHTML = '<div class="card"><div class="card-label">暂无板块</div><div class="card-value card-value-sm">等待数据</div></div>';
+                return;
+            }
+            box.innerHTML = top.map(item => `
+                <div class="card">
+                    <div class="card-label">${item.name}</div>
+                    <div class="card-value">${Number(item.short_score || 0).toFixed(1)}</div>
+                    <div class="muted">短期${item.short_grade || '-'} / 长期${item.long_grade || '-'}，${item.etf_action || '-'}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderTable() {
+            const body = document.getElementById('sector-body');
+            if (!sectors.length) {
+                body.innerHTML = '<tr><td colspan="14" class="empty">暂无板块数据</td></tr>';
+                return;
+            }
+            body.innerHTML = sectors.map((item, idx) => {
+                const active = item.key === selectedKey ? ' class="selected-row"' : '';
+                const strongest = item.strongest || {};
+                return `<tr${active} data-key="${item.key}">
+                    <td>${idx + 1}</td>
+                    <td>${item.name}</td>
+                    <td><span class="score-pill">${Number(item.heat_score || 0).toFixed(1)}</span></td>
+                    <td>${item.risk_level || '-'}</td>
+                    <td>${item.etf_action || '-'}</td>
+                    <td><span class="score-pill">${Number(item.short_score || 0).toFixed(1)}</span> ${item.short_grade || ''}</td>
+                    <td><span class="score-pill">${Number(item.long_score || 0).toFixed(1)}</span> ${item.long_grade || ''}</td>
+                    <td>${item.stock_count || 0}</td>
+                    <td>${item.up_count || 0}/${item.down_count || 0}</td>
+                    <td class="${Number(item.avg_pct_change || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.avg_pct_change)}</td>
+                    <td class="${Number(item.main_net || 0) >= 0 ? 'profit' : 'loss'}">${formatAmount(item.main_net)}</td>
+                    <td class="${Number(item.main_net_3d || 0) >= 0 ? 'profit' : 'loss'}">${formatAmount(item.main_net_3d)}</td>
+                    <td class="${Number(item.main_net_30d || 0) >= 0 ? 'profit' : 'loss'}">${formatAmount(item.main_net_30d)}</td>
+                    <td>${strongest.code || '-'} ${strongest.name || ''}</td>
+                </tr>`;
+            }).join('');
+            body.querySelectorAll('tr[data-key]').forEach(row => {
+                row.addEventListener('click', () => {
+                    selectedKey = row.dataset.key;
+                    renderTable();
+                    renderSectorStocks();
+                });
+            });
+        }
+
+        function renderSectorStocks() {
+            const sector = sectors.find(x => x.key === selectedKey);
+            const box = document.getElementById('sector-stocks');
+            const prediction = document.getElementById('sector-prediction');
+            document.getElementById('selected-sector').textContent = sector ? sector.name : '--';
+            if (!sector || !(sector.top_stocks || []).length) {
+                prediction.innerHTML = '';
+                box.innerHTML = '<div class="empty-panel">暂无股票</div>';
+                return;
+            }
+            prediction.innerHTML = `
+                <div>
+                    <span>短期适合度</span>
+                    <strong>${Number(sector.short_score || 0).toFixed(1)} / ${sector.short_grade || '-'}</strong>
+                    <p>${sector.short_reason || '-'}</p>
+                </div>
+                <div>
+                    <span>长期适合度</span>
+                    <strong>${Number(sector.long_score || 0).toFixed(1)} / ${sector.long_grade || '-'}</strong>
+                    <p>${sector.long_reason || '-'}</p>
+                </div>
+                <div>
+                    <span>基金/ETF动作</span>
+                    <strong>${sector.etf_action || '-'}</strong>
+                    <p>热度 ${Number(sector.heat_score || 0).toFixed(1)}，30日资金 ${formatAmount(sector.main_net_30d)}</p>
+                </div>
+            `;
+            box.innerHTML = sector.top_stocks.map(stock => `
+                <a class="sector-stock-card" href="/stock/${stock.code}">
+                    <strong>${stock.code} ${stock.name}</strong>
+                    <span>建仓分 ${Number(stock.tomorrow_score || 0).toFixed(1)} / 综合 ${Number(stock.score || 0).toFixed(1)}</span>
+                    <span class="${Number(stock.main_net || 0) >= 0 ? 'profit' : 'loss'}">今日资金 ${formatAmount(stock.main_net)}</span>
+                    <span>${stock.entry_status || stock.tomorrow_action || '-'}</span>
+                </a>
+            `).join('');
+        }
+
+        function formatAmount(value) {
+            const val = Number(value || 0);
+            const sign = val < 0 ? '-' : '';
+            const abs = Math.abs(val);
+            if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`;
+            if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`;
+            return `${sign}${abs.toFixed(0)}`;
+        }
+
+        function formatPct(value) {
+            const val = Number(value || 0);
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+        }
+    </script>
+</body>
+</html>

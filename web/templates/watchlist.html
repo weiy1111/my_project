@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>观察池</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>观察池</h1>
+                <p>跟踪已推荐股票的建仓状态、资金变化和下一步动作</p>
+            </div>
+            <div class="header-right">
+                <select id="status-selector">
+                    <option value="">全部状态</option>
+                    <option value="watching">观察中</option>
+                    <option value="可试仓">可试仓</option>
+                    <option value="等待回踩">等待回踩</option>
+                    <option value="等待资金转强">等待资金转强</option>
+                    <option value="stopped">触发止损</option>
+                    <option value="expired">信号失效</option>
+                </select>
+                <button id="evaluate-alerts-btn" type="button">评估提醒</button>
+                <button id="refresh-btn" type="button">刷新</button>
+                <a class="back-link" href="/alerts">提醒</a>
+                <a class="back-link" href="/">返回首页</a>
+            </div>
+        </header>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>观察列表</h3>
+                <span id="watch-count">--</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>加入日期</th>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>状态</th>
+                            <th>加入价</th>
+                            <th>当前价</th>
+                            <th>加入后涨跌</th>
+                            <th>当前涨跌</th>
+                            <th>主力净额</th>
+                            <th>建仓分</th>
+                            <th>回踩区间</th>
+                            <th>下一步</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="watch-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh-btn').addEventListener('click', loadWatchlist);
+            document.getElementById('evaluate-alerts-btn').addEventListener('click', evaluateAlerts);
+            document.getElementById('status-selector').addEventListener('change', loadWatchlist);
+            loadWatchlist();
+        });
+
+        async function loadWatchlist() {
+            const status = encodeURIComponent(document.getElementById('status-selector').value);
+            const resp = await fetch(`/api/watchlist${status ? `?status=${status}` : ''}`);
+            const data = await resp.json();
+            const items = data.items || [];
+            document.getElementById('watch-count').textContent = `${items.length} 只`;
+            renderTable(items);
+        }
+
+        async function evaluateAlerts() {
+            const btn = document.getElementById('evaluate-alerts-btn');
+            btn.disabled = true;
+            try {
+                await fetch('/api/alerts/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                });
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderTable(items) {
+            const body = document.getElementById('watch-body');
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="13" class="empty">暂无观察股票</td></tr>';
+                return;
+            }
+            body.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.added_date || '-'}</td>
+                    <td class="code">${item.code}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.status || '-'}</td>
+                    <td>${fmtPrice(item.recommended_price)}</td>
+                    <td>${fmtPrice(item.latest_price)}</td>
+                    <td class="${Number(item.since_added_return || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.since_added_return)}</td>
+                    <td class="${Number(item.latest_pct_change || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.latest_pct_change)}</td>
+                    <td class="${Number(item.latest_main_net || 0) >= 0 ? 'profit' : 'loss'}">${formatAmount(item.latest_main_net)}</td>
+                    <td>${fmtScore(item.initial_tomorrow_score)} → ${fmtScore(item.latest_tomorrow_score)}</td>
+                    <td>${item.entry_pullback_zone || '-'}</td>
+                    <td>${item.entry_next_action || '-'}</td>
+                    <td>
+                        <a class="table-link" href="/stock/${item.code}">详情</a>
+                        <button class="table-btn" onclick="removeItem(${item.id})">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function removeItem(id) {
+            await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
+            loadWatchlist();
+        }
+
+        function fmtPrice(value) {
+            const val = Number(value || 0);
+            return val ? val.toFixed(2) : '-';
+        }
+
+        function fmtScore(value) {
+            const val = Number(value || 0);
+            return val ? val.toFixed(1) : '-';
+        }
+
+        function formatAmount(value) {
+            const val = Number(value || 0);
+            const sign = val < 0 ? '-' : '';
+            const abs = Math.abs(val);
+            if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`;
+            if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`;
+            return `${sign}${abs.toFixed(0)}`;
+        }
+
+        function formatPct(value) {
+            const val = Number(value || 0);
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+        }
+    </script>
+</body>
+</html>

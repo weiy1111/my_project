@@ -1,0 +1,105 @@
+{
+  "code": "603859",
+  "source": "eastmoney",
+  "updated_at": "2026-06-12 11:08:40",
+  "items": [
+    {
+      "title": "能科科技6月9日龙虎榜数据",
+      "date": "2026-06-09 17:37:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606093765218088.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技涨停走出2连板",
+      "date": "2026-06-08 09:42:49",
+      "source": "第一财经",
+      "url": "http://finance.eastmoney.com/a/202606083762962947.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技(603859)龙虎榜数据(06-09)",
+      "date": "2026-06-09 16:57:24",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606093765161389.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技(603859)龙虎榜数据(06-08)",
+      "date": "2026-06-08 16:57:19",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606083763638420.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技连续2个交易日收盘价格涨幅偏离值累计超20%",
+      "date": "2026-06-08 18:34:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202606083763758283.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技：连续2个交易日收盘价涨幅偏离值累超20%",
+      "date": "2026-06-08 18:22:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202606083763744234.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技：2025年年度权益分派实施公告",
+      "date": "2026-06-02 21:12:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606023757835691.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "能科科技完成董事会换届 祖军任董事长",
+      "date": "2026-05-14 20:31:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202605143737666843.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "物理AI概念震荡反弹 索辰科技触及涨停",
+      "date": "2026-06-12 10:04:02",
+      "source": "每日经济新闻",
+      "url": "http://finance.eastmoney.com/a/202606123769474647.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "物理AI概念震荡反弹 索辰科技触及20cm涨停",
+      "date": "2026-06-12 10:03:08",
+      "source": "东方财富Choice数据",
+      "url": "http://finance.eastmoney.com/a/202606123769426492.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    }
+  ],
+  "news_score": 16.0,
+  "summary": "消息面偏积极",
+  "positive_count": 2,
+  "negative_count": 0
+}

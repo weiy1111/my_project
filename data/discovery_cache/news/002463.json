@@ -1,0 +1,105 @@
+{
+  "code": "002463",
+  "source": "eastmoney",
+  "updated_at": "2026-06-18 10:15:06",
+  "items": [
+    {
+      "title": "【调研快报】沪电股份接待华宝基金等19家机构调研",
+      "date": "2026-06-16 17:58:50",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606163773163561.html",
+      "event_types": [
+        "机构调研"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "沪电股份：数据通讯领域PCB高端材料供应偏紧 已搭建CoWoP等前沿技术与mSAP等先进工艺孵化平台",
+      "date": "2026-06-16 17:55:39",
+      "source": "每日经济新闻",
+      "url": "http://finance.eastmoney.com/a/202606163773164339.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "沪电股份：公司依托长期技术积累和可靠品质，深化与客户在新能源车、ADAS、智能座舱、车联网等领域合作",
+      "date": "2026-06-16 19:11:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606163773231110.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "沪电股份成交额达100亿元",
+      "date": "2026-06-10 13:16:56",
+      "source": "东方财富Choice数据",
+      "url": "http://finance.eastmoney.com/a/202606103766522550.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "【调研快报】沪电股份接待Generation Investment Management调研",
+      "date": "2026-06-10 17:12:41",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606103766754167.html",
+      "event_types": [
+        "机构调研"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "沪电股份：公司生产经营正常",
+      "date": "2026-06-09 20:03:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606093765331254.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "主力资金监控：沪电股份净卖出超19亿",
+      "date": "2026-06-10 10:57:01",
+      "source": "财联社",
+      "url": "http://finance.eastmoney.com/a/202606103766404481.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "13股获融资净买入额超2亿元 沪电股份居首",
+      "date": "2026-06-10 09:09:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606103765984093.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "沪电股份盘中涨超5%",
+      "date": "2026-06-08 13:18:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202606083763307279.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "沪电股份：公司始终紧跟行业技术前沿与市场需求的变化",
+      "date": "2026-06-09 19:37:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606093765305531.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 16.0,
+  "summary": "消息面偏积极",
+  "positive_count": 2,
+  "negative_count": 0
+}

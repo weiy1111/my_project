@@ -1,0 +1,12 @@
+﻿timestamp,code,bar_period,broker_mode,allow_trade,price,signal,reason,operation,status,quantity,order_price,fill_price,fill_quantity,total_asset,available_cash,base_position,intraday_position,avg_entry_price,broker_order_id,note
+2026-08-04 14:54:13,513310,30s,sim,no,4.5820,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:54:58,513310,30s,sim,no,4.5830,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:55:28,513310,30s,sim,no,4.5830,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:55:59,513310,30s,sim,no,4.5880,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:56:29,513310,30s,sim,no,4.6040,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:56:59,513310,30s,sim,no,4.6110,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:57:29,513310,30s,sim,no,4.6120,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:57:59,513310,30s,sim,no,4.6120,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:58:30,513310,30s,sim,no,4.6120,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:59:00,513310,30s,sim,no,4.6120,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,
+2026-08-04 14:59:30,513310,30s,sim,no,4.6120,hold,接近尾盘不再开T仓,hold,no_order,,,,,10000.00,10000.00,,,,,

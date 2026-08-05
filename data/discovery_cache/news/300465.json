@@ -1,0 +1,105 @@
+{
+  "code": "300465",
+  "source": "eastmoney",
+  "updated_at": "2026-06-18 10:13:47",
+  "items": [
+    {
+      "title": "高伟达：截至2026年6月10日公司股东人数为52854户",
+      "date": "2026-06-17 18:51:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606173774729039.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "高伟达与国光量子、纬德信息签署三方战略合作协议",
+      "date": "2026-06-17 11:56:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606173774311224.html",
+      "event_types": [
+        "订单/中标"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "高伟达：拟回购3000万元-3500万元股份",
+      "date": "2026-06-11 18:59:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202606113768450737.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "高伟达6月4日大宗交易成交4999.95万元",
+      "date": "2026-06-04 17:43:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606043760516848.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "大宗交易：高伟达成交4999.95万元，溢价11.28%（6-4）",
+      "date": "2026-06-04 16:32:55",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202606043760424856.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "高伟达：2026年6月24日将召开2025年年度股东会",
+      "date": "2026-06-03 21:00:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606033759271747.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "高伟达：公司始终将市值维护放在重要位置",
+      "date": "2026-05-08 17:12:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605083731590324.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "高伟达：截至2026年3月31日股东总数为51943户",
+      "date": "2026-05-08 17:19:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605083731592883.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "高伟达：截至2026年4月10日公司股东人数为52627户",
+      "date": "2026-05-08 16:32:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605083731550390.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "今日共57只个股发生大宗交易，总成交61.74亿元",
+      "date": "2026-06-04 17:41:11",
+      "source": "第一财经",
+      "url": "http://finance.eastmoney.com/a/202606043760512625.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 16.0,
+  "summary": "消息面偏积极",
+  "positive_count": 2,
+  "negative_count": 0
+}

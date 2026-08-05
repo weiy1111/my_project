@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大a数据分析</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>大a数据分析</h1>
+                <p>大科技板块资金流向 + 趋势强度 + AI 辅助研判，已排除科创板</p>
+            </div>
+            <div class="header-right">
+                <select id="period-selector">
+                    <option value="即时">即时</option>
+                    <option value="3日排行">3日排行</option>
+                    <option value="5日排行">5日排行</option>
+                    <option value="10日排行">10日排行</option>
+                </select>
+                <select id="score-selector">
+                    <option value="0">全部评分</option>
+                    <option value="50">50 分以上</option>
+                    <option value="65">65 分以上</option>
+                    <option value="80">80 分以上</option>
+                </select>
+                <select id="flow-selector">
+                    <option value="1" selected>显示全部资金</option>
+                    <option value="0">只看净流入</option>
+                </select>
+                <select id="limit-selector">
+                    <option value="40">显示 40 只</option>
+                    <option value="80" selected>显示 80 只</option>
+                    <option value="120">显示 120 只</option>
+                    <option value="200">显示 200 只</option>
+                </select>
+                <select id="sort-selector">
+                    <option value="score">综合评分</option>
+                    <option value="tomorrow">明日建仓</option>
+                    <option value="flow_persistence">资金持续</option>
+                    <option value="pullback">回踩机会</option>
+                </select>
+                <select id="strict-selector">
+                    <option value="0">普通模式</option>
+                    <option value="1">严选模式</option>
+                </select>
+                <button id="refresh-btn" type="button">刷新</button>
+                <button id="save-recommendations-btn" type="button">保存今日推荐</button>
+                <button id="watchlist-btn" type="button">加入观察池</button>
+                <a class="back-link" href="/sectors">板块热度</a>
+                <a class="back-link" href="/watchlist">观察池</a>
+                <a class="back-link" href="/alerts">提醒</a>
+                <a class="back-link" href="/review">复盘</a>
+                <a class="back-link" href="/settings">设置</a>
+                <span id="auto-refresh-indicator" class="indicator-on">自动刷新</span>
+                <span id="save-status" class="muted"></span>
+            </div>
+        </header>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-label">科技候选股票</div>
+                <div class="card-value" id="candidate-count">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">主力净流入合计</div>
+                <div class="card-value" id="total-main-net">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">平均评分</div>
+                <div class="card-value" id="avg-score">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">当前最佳候选</div>
+                <div class="card-value card-value-sm" id="best-stock">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">明日首选</div>
+                <div class="card-value card-value-sm" id="best-entry-stock">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">科技股票池</div>
+                <div class="card-value" id="tech-pool-size">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">资金净流入数量</div>
+                <div class="card-value" id="positive-count">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">最后更新</div>
+                <div class="card-value card-value-sm" id="last-update">--</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-box chart-wide">
+                <h3>Top 资金净流入</h3>
+                <div id="chart-flow" class="chart"></div>
+            </div>
+            <div class="chart-box chart-narrow">
+                <h3>评分构成</h3>
+                <div id="chart-score" class="chart"></div>
+            </div>
+        </div>
+
+        <div class="layout">
+            <section class="section stock-list-section">
+                <div class="section-title">
+                    <h3>股票候选列表</h3>
+                    <span id="list-subtitle">按综合评分排序</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>代码</th>
+                                <th>名称</th>
+                                <th>价格</th>
+                                <th>涨跌幅</th>
+                                <th>主力净额</th>
+                                <th>净占比</th>
+                                <th>资金结构</th>
+                                <th>评分</th>
+                                <th>建仓分</th>
+                                <th>严选</th>
+                                <th>触发</th>
+                                <th>建议</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stocks-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <aside class="section detail-panel">
+                <div class="section-title">
+                    <h3>AI 辅助研判</h3>
+                    <span id="detail-code">--</span>
+                </div>
+                <div id="ai-detail" class="ai-detail empty-panel">单击查看基础研判，双击进入详情页</div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        let flowChart = null;
+        let scoreChart = null;
+        let stocks = [];
+        let selectedCode = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            flowChart = echarts.init(document.getElementById('chart-flow'));
+            scoreChart = echarts.init(document.getElementById('chart-score'));
+            window.addEventListener('resize', () => {
+                flowChart.resize();
+                scoreChart.resize();
+            });
+            document.getElementById('refresh-btn').addEventListener('click', refreshAll);
+            document.getElementById('save-recommendations-btn').addEventListener('click', saveRecommendations);
+            document.getElementById('watchlist-btn').addEventListener('click', addSelectedToWatchlist);
+            document.getElementById('period-selector').addEventListener('change', refreshAll);
+            document.getElementById('score-selector').addEventListener('change', refreshAll);
+            document.getElementById('flow-selector').addEventListener('change', refreshAll);
+            document.getElementById('limit-selector').addEventListener('change', refreshAll);
+            document.getElementById('sort-selector').addEventListener('change', refreshAll);
+            document.getElementById('strict-selector').addEventListener('change', refreshAll);
+            refreshAll();
+            setInterval(refreshAll, 60000);
+        });
+
+        async function refreshAll() {
+            const period = encodeURIComponent(document.getElementById('period-selector').value);
+            const minScore = document.getElementById('score-selector').value;
+            const includeNegative = document.getElementById('flow-selector').value;
+            const limit = document.getElementById('limit-selector').value;
+            const sortBy = encodeURIComponent(document.getElementById('sort-selector').value);
+            const strict = document.getElementById('strict-selector').value;
+            const resp = await fetch(`/api/discovery?period=${period}&limit=${limit}&min_score=${minScore}&include_negative=${includeNegative}&sort_by=${sortBy}&strict=${strict}`);
+            const data = await resp.json();
+            stocks = data.items || [];
+            selectedCode = selectedCode && stocks.some(s => s.code === selectedCode)
+                ? selectedCode
+                : (stocks[0] ? stocks[0].code : '');
+            renderOverview(data);
+            renderTable();
+            renderFlowChart();
+            renderScoreChart();
+            renderDetail();
+        }
+
+        async function addSelectedToWatchlist() {
+            const stock = stocks.find(s => s.code === selectedCode);
+            const status = document.getElementById('save-status');
+            if (!stock) {
+                status.textContent = '未选择股票';
+                return;
+            }
+            try {
+                await fetch('/api/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: stock.code, source: 'dashboard', item: stock }),
+                });
+                status.textContent = `已加入观察池 ${stock.code}`;
+            } catch (err) {
+                status.textContent = '加入观察池失败';
+            }
+        }
+
+        async function saveRecommendations() {
+            const btn = document.getElementById('save-recommendations-btn');
+            const status = document.getElementById('save-status');
+            const period = document.getElementById('period-selector').value;
+            const sortBy = document.getElementById('sort-selector').value;
+            const limit = Number(document.getElementById('limit-selector').value || 80);
+            const strict = document.getElementById('strict-selector').value === '1';
+            btn.disabled = true;
+            status.textContent = '保存中...';
+            try {
+                const resp = await fetch('/api/recommendations/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ period, sort_by: sortBy, limit: Math.min(limit, 100), strict }),
+                });
+                const data = await resp.json();
+                status.textContent = `已保存 ${data.saved || 0} 只`;
+            } catch (err) {
+                status.textContent = '保存失败';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderOverview(data) {
+            const summary = data.summary || {};
+            document.getElementById('candidate-count').textContent = summary.count || 0;
+            document.getElementById('positive-count').textContent = summary.positive_flow_count || 0;
+            document.getElementById('tech-pool-size').textContent = data.tech_pool_size || 0;
+            document.getElementById('total-main-net').textContent = formatAmount(summary.total_main_net || 0);
+            document.getElementById('avg-score').textContent = (summary.avg_score || 0).toFixed(1);
+            document.getElementById('best-stock').textContent = summary.best
+                ? `${summary.best.code} ${summary.best.name}`
+                : '--';
+            document.getElementById('best-entry-stock').textContent = summary.best_entry
+                ? `${summary.best_entry.code} ${summary.best_entry.name} ${Number(summary.best_entry.tomorrow_score || 0).toFixed(1)}`
+                : '--';
+            document.getElementById('last-update').textContent = data.updated_at ? data.updated_at.split(' ')[1] : '--';
+            const sortText = document.getElementById('sort-selector').selectedOptions[0].textContent;
+            const strictText = document.getElementById('strict-selector').selectedOptions[0].textContent;
+            const flowText = document.getElementById('flow-selector').selectedOptions[0].textContent;
+            document.getElementById('list-subtitle').textContent = `大科技板块，${data.period || '即时'}，${flowText}，${strictText}，按${sortText}排序`;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('stocks-body');
+            if (!stocks.length) {
+                tbody.innerHTML = '<tr><td colspan="13" class="empty">暂无候选股票</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = stocks.map((s, index) => {
+                const active = s.code === selectedCode ? ' class="selected-row"' : '';
+                const pctClass = s.pct_change >= 0 ? 'profit' : 'loss';
+                const strictTitle = (s.reject_reasons || []).concat(s.strict_warnings || []).join('；');
+                const strictBadge = s.strict_pass
+                    ? '<span class="strict-ok">通过</span>'
+                    : `<span class="strict-bad" title="${strictTitle}">剔除</span>`;
+                return `<tr${active} data-code="${s.code}">
+                    <td>${index + 1}</td>
+                    <td class="code">${s.code}</td>
+                    <td>${s.name || '-'}</td>
+                    <td>${s.price ? s.price.toFixed(2) : '-'}</td>
+                    <td class="${pctClass}">${formatPct(s.pct_change)}</td>
+                    <td class="${s.main_net >= 0 ? 'profit' : 'loss'}">${formatAmount(s.main_net)}</td>
+                    <td class="${s.main_pct >= 0 ? 'profit' : 'loss'}">${formatPct(s.main_pct)}</td>
+                    <td><span class="${moneyClass(s.money_structure_score)}">${s.money_structure_label || '-'}</span></td>
+                    <td><span class="score-pill">${s.score.toFixed(1)}</span></td>
+                    <td><span class="score-pill entry-score">${Number(s.tomorrow_score || 0).toFixed(1)}</span></td>
+                    <td>${strictBadge}</td>
+                    <td>${s.entry_status || '-'}</td>
+                    <td>${s.tomorrow_action || (s.ai ? s.ai.action : '-')}</td>
+                </tr>`;
+            }).join('');
+
+            tbody.querySelectorAll('tr[data-code]').forEach(row => {
+                row.addEventListener('click', () => {
+                    selectedCode = row.dataset.code;
+                    renderTable();
+                    renderScoreChart();
+                    renderDetail();
+                });
+                row.addEventListener('dblclick', () => {
+                    const period = encodeURIComponent(document.getElementById('period-selector').value);
+                    window.location.href = `/stock/${row.dataset.code}?period=${period}`;
+                });
+            });
+        }
+
+        function renderFlowChart() {
+            const top = stocks.slice(0, 12).reverse();
+            if (!top.length) {
+                flowChart.clear();
+                return;
+            }
+            flowChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: params => {
+                        const p = params[0];
+                        const item = top[p.dataIndex];
+                        return `${item.code} ${item.name}<br/>主力净额: ${formatAmount(item.main_net)}<br/>净占比: ${formatPct(item.main_pct)}`;
+                    }
+                },
+                grid: { left: 96, right: 30, top: 20, bottom: 30 },
+                xAxis: { type: 'value', axisLabel: { formatter: v => formatAmount(v) } },
+                yAxis: { type: 'category', data: top.map(s => `${s.code} ${s.name}`) },
+                series: [{
+                    type: 'bar',
+                    data: top.map(s => s.main_net),
+                    itemStyle: { color: params => params.value >= 0 ? '#d64545' : '#1f9d55' },
+                }]
+            }, true);
+        }
+
+        function renderScoreChart() {
+            const stock = stocks.find(s => s.code === selectedCode);
+            if (!stock) {
+                scoreChart.clear();
+                return;
+            }
+            scoreChart.setOption({
+                tooltip: { trigger: 'item' },
+                radar: {
+                    indicator: [
+                        { name: '资金', max: 100 },
+                        { name: '持续', max: 100 },
+                        { name: '趋势', max: 100 },
+                        { name: '量能', max: 100 },
+                        { name: '低风险', max: 100 },
+                        { name: '建仓', max: 100 },
+                    ],
+                    radius: '66%',
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: [
+                            stock.flow_score,
+                            stock.flow_persistence_score,
+                            stock.trend_score,
+                            stock.volume_score,
+                            Math.max(0, 100 - stock.risk_score),
+                            stock.tomorrow_score,
+                        ],
+                        name: `${stock.code} ${stock.name}`,
+                        areaStyle: { color: 'rgba(45, 105, 190, 0.18)' },
+                        lineStyle: { color: '#2d69be' },
+                        itemStyle: { color: '#2d69be' },
+                    }]
+                }]
+            }, true);
+        }
+
+        function renderDetail() {
+            const stock = stocks.find(s => s.code === selectedCode);
+            const panel = document.getElementById('ai-detail');
+            document.getElementById('detail-code').textContent = stock ? `${stock.code} ${stock.name}` : '--';
+            if (!stock || !stock.ai) {
+                panel.className = 'ai-detail empty-panel';
+                panel.textContent = '选择一只股票查看解读';
+                return;
+            }
+            panel.className = 'ai-detail';
+            panel.innerHTML = `
+                <div class="decision">${stock.ai.action}</div>
+                <p>${stock.ai.summary}</p>
+                <div class="metric-grid">
+                    <div><span>主力净额</span><strong>${formatAmount(stock.main_net)}</strong></div>
+                    <div><span>主力净占比</span><strong>${formatPct(stock.main_pct)}</strong></div>
+                    <div><span>大单合计</span><strong class="${stock.big_order_net >= 0 ? 'profit' : 'loss'}">${formatAmount(stock.big_order_net)}</strong></div>
+                    <div><span>小单资金</span><strong class="${stock.small_net >= 0 ? 'profit' : 'loss'}">${formatAmount(stock.small_net)}</strong></div>
+                    <div><span>3日资金</span><strong>${formatAmount(stock.main_net_3d)}</strong></div>
+                    <div><span>30日资金</span><strong>${formatAmount(stock.main_net_30d)}</strong></div>
+                    <div><span>建仓分</span><strong>${Number(stock.tomorrow_score || 0).toFixed(1)}</strong></div>
+                    <div><span>消息分</span><strong>${Number(stock.news_score || 0).toFixed(1)}</strong></div>
+                    <div><span>RSI</span><strong>${stock.rsi ? stock.rsi.toFixed(1) : '-'}</strong></div>
+                </div>
+                <h4>明日建仓</h4>
+                <ul>
+                    <li>${stock.tomorrow_action || '-'}</li>
+                    <li>资金结构：${stock.money_structure_label || '-'}，${stock.money_structure_suggestion || '-'}</li>
+                    <li>触发状态：${stock.entry_status || '-'}（${stock.entry_passed_count || 0}/${stock.entry_total_count || 0}）</li>
+                    <li>严选状态：${stock.strict_pass ? '通过' : '剔除'}</li>
+                    ${stock.reject_reasons?.length ? `<li>剔除原因：${stock.reject_reasons.join('；')}</li>` : ''}
+                    ${stock.strict_warnings?.length ? `<li>风险提醒：${stock.strict_warnings.join('；')}</li>` : ''}
+                    <li>回踩区间：${stock.entry_pullback_zone || '-'}</li>
+                    <li>${stock.entry_next_action || '-'}</li>
+                    <li>${stock.tomorrow_reason || '-'}</li>
+                    <li>${stock.tomorrow_risk || '-'}</li>
+                </ul>
+                <h4>入选理由</h4>
+                <ul>${stock.ai.strengths.map(x => `<li>${x}</li>`).join('')}</ul>
+                <h4>风险提示</h4>
+                <ul>${stock.ai.risks.map(x => `<li>${x}</li>`).join('')}</ul>
+                <h4>观察点</h4>
+                <ul>${stock.ai.watch.map(x => `<li>${x}</li>`).join('')}</ul>
+                <a class="detail-link" href="/stock/${stock.code}?period=${encodeURIComponent(document.getElementById('period-selector').value)}">进入二级详情页</a>
+            `;
+        }
+
+        function formatAmount(value) {
+            const val = Number(value || 0);
+            const sign = val < 0 ? '-' : '';
+            const abs = Math.abs(val);
+            if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`;
+            if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`;
+            return `${sign}${abs.toFixed(0)}`;
+        }
+
+        function formatPct(value) {
+            const val = Number(value || 0);
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+        }
+
+        function moneyClass(value) {
+            const val = Number(value || 0);
+            if (val >= 65) return 'strict-ok';
+            if (val < 45) return 'strict-bad';
+            return 'score-pill';
+        }
+    </script>
+</body>
+</html>

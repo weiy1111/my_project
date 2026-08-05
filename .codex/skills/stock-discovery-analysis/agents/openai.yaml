@@ -1,0 +1,3 @@
+display_name: Stock Discovery Analysis
+short_description: Maintain or migrate the A-share big-tech stock discovery method.
+default_prompt: Use the stock-discovery-analysis skill to update or migrate the quant_trading stock discovery system while preserving its fund-flow, strict selection, sector, and LLM analysis rules.

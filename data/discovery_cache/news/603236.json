@@ -1,0 +1,115 @@
+{
+  "code": "603236",
+  "source": "eastmoney",
+  "updated_at": "2026-06-24 11:26:31",
+  "items": [
+    {
+      "title": "移远通信：3663.21万股限售股6月24日解禁，占总股本9.09%",
+      "date": "2026-06-16 18:06:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202606163773175381.html",
+      "event_types": [
+        "解禁"
+      ],
+      "sentiment": "negative",
+      "news_score": -12
+    },
+    {
+      "title": "移远通信常州XR产线已建成 为智能眼镜赛道补齐关键制造短板",
+      "date": "2026-06-12 21:48:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606123770193820.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "A股限售股解禁一览：48.92亿元市值限售股今日解禁",
+      "date": "2026-06-24 07:32:57",
+      "source": "每日经济新闻",
+      "url": "http://finance.eastmoney.com/a/202606243780218589.html",
+      "event_types": [
+        "解禁"
+      ],
+      "sentiment": "negative",
+      "news_score": -12
+    },
+    {
+      "title": "移远通信：公司始终重视市值管理工作",
+      "date": "2026-05-22 20:15:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605223746986933.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "移远通信：公司围绕“连接+智能”战略，持续推出面向边缘侧的AI模组与解决方案",
+      "date": "2026-05-22 20:15:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605223746991912.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "移远通信：公司独立董事充分发挥独立履职作用，保障公司规范运营与中小股东合法权益",
+      "date": "2026-05-22 19:39:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605223746958390.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "移远通信：二级市场价格波动受宏观经济、行业政策及市场情绪等多重复杂因素影响",
+      "date": "2026-05-22 19:39:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605223746958412.html",
+      "event_types": [
+        "政策催化"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "移远通信：自上市以来已连续多年实施现金分红",
+      "date": "2026-05-18 17:55:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605183740600417.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "移远通信：公司定位物联网领域综合解决方案供应商",
+      "date": "2026-05-18 17:54:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605183740600667.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "融资客看好1股 买入占成交比例超三成",
+      "date": "2026-06-24 10:40:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606243781126248.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 16.0,
+  "summary": "消息面偏积极",
+  "positive_count": 5,
+  "negative_count": 2
+}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>评分配置</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>评分权重配置</h1>
+                <p>调整综合评分和明日建仓评分权重，保存后立即影响新的扫描结果</p>
+            </div>
+            <div class="header-right">
+                <select id="config-select"></select>
+                <button id="default-btn" class="secondary-inline-btn" type="button">设为默认</button>
+                <button id="save-btn" type="button">保存配置</button>
+                <a class="back-link" href="/">返回首页</a>
+                <span id="save-status" class="muted"></span>
+            </div>
+        </header>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>配置预设</h3>
+                <span id="active-config">--</span>
+            </div>
+            <div class="preset-grid" id="preset-grid"></div>
+        </section>
+
+        <div class="analysis-grid">
+            <section class="section">
+                <div class="section-title">
+                    <h3>综合评分</h3>
+                    <span>用于首页综合排序</span>
+                </div>
+                <div id="score-form" class="settings-grid"></div>
+            </section>
+
+            <section class="section">
+                <div class="section-title">
+                    <h3>明日建仓评分</h3>
+                    <span>用于明日低吸排序</span>
+                </div>
+                <div id="entry-form" class="settings-grid"></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const fields = [
+            ['flow_weight', '当日资金'],
+            ['flow_persistence_weight', '资金持续'],
+            ['trend_weight', '趋势'],
+            ['volume_weight', '量能'],
+            ['data_quality_weight', '数据质量'],
+            ['risk_weight', '风险扣分'],
+            ['news_weight', '消息面'],
+            ['sector_heat_weight', '板块热度'],
+        ];
+        const entryFields = [
+            ['entry_flow_weight', '当日资金'],
+            ['entry_flow_persistence_weight', '资金持续'],
+            ['entry_trend_weight', '趋势'],
+            ['entry_volume_weight', '量能'],
+            ['entry_data_quality_weight', '数据质量'],
+            ['entry_risk_weight', '风险扣分'],
+            ['entry_news_weight', '消息面'],
+            ['entry_accumulation_weight', '建仓量价'],
+        ];
+        let config = {};
+        let configs = [];
+        let selectedName = 'default';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('save-btn').addEventListener('click', saveConfig);
+            document.getElementById('default-btn').addEventListener('click', setDefaultConfig);
+            document.getElementById('config-select').addEventListener('change', event => {
+                selectedName = event.target.value;
+                applySelectedConfig();
+            });
+            loadConfig();
+        });
+
+        async function loadConfig() {
+            const resp = await fetch('/api/score-configs');
+            const data = await resp.json();
+            configs = data.configs || [];
+            const active = configs.find(item => item.is_default) || configs[0] || {};
+            selectedName = active.name || 'default';
+            config = active.config || data.config || {};
+            renderConfigSelector();
+            renderPresetGrid();
+            renderForm('score-form', fields);
+            renderForm('entry-form', entryFields);
+        }
+
+        function renderConfigSelector() {
+            const select = document.getElementById('config-select');
+            select.innerHTML = configs.map(item => `
+                <option value="${item.name}" ${item.name === selectedName ? 'selected' : ''}>
+                    ${displayName(item.name)}${item.is_default ? '（默认）' : ''}
+                </option>
+            `).join('');
+            const active = configs.find(item => item.is_default);
+            document.getElementById('active-config').textContent = `当前默认：${active ? displayName(active.name) : '-'}`;
+        }
+
+        function renderPresetGrid() {
+            const box = document.getElementById('preset-grid');
+            box.innerHTML = configs.map(item => `
+                <button class="preset-card ${item.name === selectedName ? 'selected' : ''}" type="button" data-name="${item.name}">
+                    <strong>${displayName(item.name)}</strong>
+                    <span>${presetDescription(item.name)}</span>
+                    ${item.is_default ? '<em>默认生效</em>' : ''}
+                </button>
+            `).join('');
+            document.querySelectorAll('.preset-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    selectedName = card.dataset.name;
+                    document.getElementById('config-select').value = selectedName;
+                    applySelectedConfig();
+                });
+            });
+        }
+
+        function applySelectedConfig() {
+            const selected = configs.find(item => item.name === selectedName);
+            config = selected?.config ? { ...selected.config } : {};
+            renderConfigSelector();
+            renderPresetGrid();
+            renderForm('score-form', fields);
+            renderForm('entry-form', entryFields);
+            document.getElementById('save-status').textContent = '';
+        }
+
+        function renderForm(id, fieldList) {
+            const box = document.getElementById(id);
+            box.innerHTML = fieldList.map(([key, label]) => `
+                <label class="setting-row">
+                    <span>${label}</span>
+                    <input type="number" step="0.01" data-key="${key}" value="${Number(config[key] ?? 0).toFixed(2)}">
+                </label>
+            `).join('');
+        }
+
+        async function saveConfig() {
+            document.querySelectorAll('input[data-key]').forEach(input => {
+                config[input.dataset.key] = Number(input.value || 0);
+            });
+            const resp = await fetch('/api/score-configs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: selectedName, config }),
+            });
+            const data = await resp.json();
+            configs = data.configs || configs;
+            renderConfigSelector();
+            renderPresetGrid();
+            document.getElementById('save-status').textContent = data.ok ? `已保存 ${displayName(selectedName)}` : '保存失败';
+        }
+
+        async function setDefaultConfig() {
+            const resp = await fetch('/api/score-configs/default', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: selectedName }),
+            });
+            const data = await resp.json();
+            configs = data.configs || configs;
+            renderConfigSelector();
+            renderPresetGrid();
+            document.getElementById('save-status').textContent = data.ok ? `已设为默认：${displayName(selectedName)}` : '设置失败';
+        }
+
+        function displayName(name) {
+            return {
+                default: '均衡配置',
+                conservative: '保守配置',
+                aggressive: '激进配置',
+            }[name] || name;
+        }
+
+        function presetDescription(name) {
+            return {
+                default: '资金、趋势和风险相对均衡，适合日常扫描。',
+                conservative: '提高资金持续和风险权重，偏向稳健低吸。',
+                aggressive: '提高当日资金、量能和消息面权重，偏向强势机会。',
+            }[name] || '自定义评分配置。';
+        }
+    </script>
+</body>
+</html>

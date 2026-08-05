@@ -1,0 +1,21 @@
+{
+  "date": "20260508",
+  "strategy": "trend_reversion",
+  "initial_cash": 200000.0,
+  "final_asset": 200000.0,
+  "total_pnl": 0.0,
+  "total_pnl_pct": 0.0,
+  "realized_pnl": 0,
+  "unrealized_pnl": 0.0,
+  "total_commission": 0,
+  "trade_count": 0,
+  "buy_count": 0,
+  "sell_count": 0,
+  "total_buy_amount": 0,
+  "total_sell_amount": 0,
+  "snapshot_count": 2,
+  "start_time": "2026-05-08 17:47:18",
+  "end_time": "2026-05-08 17:47:18",
+  "trades_file": "reports/live/trades_20260508.csv",
+  "snapshots_file": "reports/live/snapshots_20260508.csv"
+}

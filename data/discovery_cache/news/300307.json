@@ -1,0 +1,105 @@
+{
+  "code": "300307",
+  "source": "eastmoney",
+  "updated_at": "2026-06-10 14:28:55",
+  "items": [
+    {
+      "title": "慈星股份亮相山东海阳第九届毛衫艺术活动",
+      "date": "2026-05-25 20:07:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605253748413586.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "筹划一年多慈星股份终止定增，称自有资金充足！公司去年净利下降逾六成",
+      "date": "2026-05-21 18:56:26",
+      "source": "深圳商报·读创",
+      "url": "http://finance.eastmoney.com/a/202605213745369056.html",
+      "event_types": [
+        "业绩下滑"
+      ],
+      "sentiment": "negative",
+      "news_score": -12
+    },
+    {
+      "title": "慈星股份深耕欧洲赋能全球针织前沿创新 慈星·STEIGER欧洲研发中心顺利奠基",
+      "date": "2026-05-13 17:16:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605133736033312.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "科技股大跳水，机器人却逆势狂飙！华为重磅发布引爆涨停潮",
+      "date": "2026-06-05 17:35:00",
+      "source": "21世纪经济报道",
+      "url": "http://finance.eastmoney.com/a/202606053762051171.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "A股收评：创业板指下跌3.2%，减速器概念涨幅居前",
+      "date": "2026-06-05 15:17:00",
+      "source": "21世纪经济报道",
+      "url": "http://stock.eastmoney.com/a/202606053761926485.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "A股午评：创业板指下跌0.82%，太赫兹概念涨幅居前",
+      "date": "2026-06-05 11:45:00",
+      "source": "21世纪经济报道",
+      "url": "http://finance.eastmoney.com/a/202606053761724325.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "118只股中线走稳 站上半年线",
+      "date": "2026-06-05 11:42:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606053761725313.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "今日突破年线个股",
+      "date": "2026-06-05 15:49:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606053761951890.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "105只股中线走稳 站上半年线",
+      "date": "2026-06-05 15:49:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606053761951371.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "124只股中线走稳 站上半年线",
+      "date": "2026-06-05 14:18:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606053761870983.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": -4.0,
+  "summary": "消息面中性",
+  "positive_count": 1,
+  "negative_count": 1
+}

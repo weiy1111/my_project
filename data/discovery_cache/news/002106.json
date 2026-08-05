@@ -1,0 +1,103 @@
+{
+  "code": "002106",
+  "source": "eastmoney",
+  "updated_at": "2026-06-25 10:57:17",
+  "items": [
+    {
+      "title": "莱宝高科录得5天3板",
+      "date": "2026-06-22 11:33:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606223777755335.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科成交额创2025年5月8日以来新高",
+      "date": "2026-06-18 14:48:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606183776088041.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "面板概念震荡反弹，莱宝高科、深天马Ａ双双涨停",
+      "date": "2026-06-17 09:47:55",
+      "source": "界面新闻",
+      "url": "http://finance.eastmoney.com/a/202606173774095092.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科：公司仅在定期报告等特定公告情形披露股东人数信息",
+      "date": "2026-06-15 19:58:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606153771746943.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科：公司2026年继续积极推进玻璃基面板级封装载板技术和产品的深入开发和相关合作",
+      "date": "2026-06-15 17:11:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606153771639087.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科：2025年年度权益分派实施公告",
+      "date": "2026-06-09 21:46:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606093765455830.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科：公司2026年度笔记本电脑用触摸屏销售能否实现同比增长存在一定不确定性",
+      "date": "2026-06-08 22:16:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606083763929646.html",
+      "event_types": [
+        "业绩增长"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "莱宝高科成交额创2025年5月8日以来新高",
+      "date": "2026-06-05 14:43:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606053761907465.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科：公司2026年继续积极推进玻璃基面板级封装载板技术和产品的深入开发和相关合作",
+      "date": "2026-06-05 16:16:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606053761987137.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "莱宝高科：MED项目目前处于设备安装调试阶段",
+      "date": "2026-05-28 20:47:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605283753009227.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 8.0,
+  "summary": "消息面略偏积极",
+  "positive_count": 1,
+  "negative_count": 0
+}

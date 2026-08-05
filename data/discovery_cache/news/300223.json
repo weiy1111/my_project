@@ -1,0 +1,105 @@
+{
+  "code": "300223",
+  "source": "eastmoney",
+  "updated_at": "2026-06-12 10:15:24",
+  "items": [
+    {
+      "title": "北京君正：LPDDR5已在规划中",
+      "date": "2026-06-11 17:29:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768394966.html",
+      "event_types": [
+        "政策催化"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "北京君正：公司董事是否变更请关注公司公告",
+      "date": "2026-06-11 17:31:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768396533.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "北京君正：公司积极寻求国内代工资源",
+      "date": "2026-06-11 17:26:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768391925.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "北京君正：目前公司存储产品已给多家服务器企业供货",
+      "date": "2026-06-11 17:16:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768381668.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "北京君正：公司定期报告时会披露前十大股东持股信息",
+      "date": "2026-06-11 17:29:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768389910.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "北京君正：公司智能视觉领域拥有人脸识别、移动侦测、多物检测等多种算法",
+      "date": "2026-06-11 17:26:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768394073.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "全球芯片股暴力反弹，长电科技、北京君正涨超7%！芯片ETF汇添富(516920)收涨超5%强势反包昨日跌幅！AI基建加码推升存储景气！",
+      "date": "2026-06-09 18:23:09",
+      "source": "界面新闻",
+      "url": "http://stock.eastmoney.com/a/202606093765418169.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "北京君正：目前DRAM有四家代工伙伴",
+      "date": "2026-06-04 16:29:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606043760430650.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "北京君正：公司Flash产品会积极寻求新的市场方向",
+      "date": "2026-06-04 21:27:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606043760661524.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "北京君正：目前DRAM产能很紧，市场需求非常旺盛",
+      "date": "2026-06-04 16:00:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606043760399255.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    }
+  ],
+  "news_score": 16.0,
+  "summary": "消息面偏积极",
+  "positive_count": 2,
+  "negative_count": 0
+}

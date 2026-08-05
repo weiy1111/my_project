@@ -1,0 +1,115 @@
+{
+  "code": "603728",
+  "source": "eastmoney",
+  "updated_at": "2026-07-01 17:54:20",
+  "items": [
+    {
+      "title": "布局人形机器人灵巧手电机 鸣志电器收盘涨停",
+      "date": "2026-06-30 16:00:41",
+      "source": "上海证券报·中国证券网",
+      "url": "http://finance.eastmoney.com/a/202606303788328491.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "鸣志电器：2025年年度权益分派实施公告",
+      "date": "2026-06-11 21:14:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606113768575132.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "鸣志电器：每股派0.025元，股权登记日为6月17日",
+      "date": "2026-06-11 17:19:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202606113768366310.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "机器人概念股早盘走强，机器人ETF涨约6%",
+      "date": "2026-06-30 11:41:16",
+      "source": "每日经济新闻",
+      "url": "http://stock.eastmoney.com/a/202606303788174565.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "国证机器人产业指数大涨7.5%，机器人ETF易方达（159530）近一月“吸金”量领跑同标的产品",
+      "date": "2026-06-30 19:27:00",
+      "source": "21世纪经济报道",
+      "url": "http://stock.eastmoney.com/a/202606303788748790.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "机器人产业指数大涨7.5%，机器人ETF易方达（159530）近一月“吸金量”领跑同类产品",
+      "date": "2026-06-30 18:47:38",
+      "source": "财联社",
+      "url": "http://stock.eastmoney.com/a/202606303788552448.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "A股半年度行情收官 科创综指累计涨近54%",
+      "date": "2026-06-30 15:44:08",
+      "source": "上海证券报·中国证券网",
+      "url": "http://stock.eastmoney.com/a/202606303788312562.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "智元机器人总产量突破1.5万台！机器人ETF天弘（159770）标的指数收盘暴涨超5%，申购额超1000万份为深市同标的第一",
+      "date": "2026-07-01 09:16:26",
+      "source": "每日经济新闻",
+      "url": "http://stock.eastmoney.com/a/202607013789269682.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "涨超2.0%，机器人ETF华夏(562500)盘中上涨2.02%",
+      "date": "2026-06-30 09:35:53",
+      "source": "界面新闻",
+      "url": "http://stock.eastmoney.com/a/202606303788204779.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "机器人概念掀起涨停潮，机器人ETF富国（159272）盘中涨幅达7.24%",
+      "date": "2026-06-30 14:46:46",
+      "source": "每日经济新闻",
+      "url": "http://stock.eastmoney.com/a/202606303788276993.html",
+      "event_types": [
+        "技术/产品"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    }
+  ],
+  "news_score": 40.0,
+  "summary": "消息面偏积极",
+  "positive_count": 7,
+  "negative_count": 0
+}

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>买点提醒</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>买点和风险提醒</h1>
+                <p>基于观察池和当前快照评估可试仓、等待回踩、资金转弱、止损和不追高</p>
+            </div>
+            <div class="header-right">
+                <select id="status-selector">
+                    <option value="">全部状态</option>
+                    <option value="triggered">已触发</option>
+                    <option value="active">观察中</option>
+                </select>
+                <button id="evaluate-btn" type="button">评估观察池</button>
+                <button id="refresh-btn" type="button">刷新</button>
+                <a class="back-link" href="/">返回首页</a>
+            </div>
+        </header>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>今日提醒</h3>
+                <span id="alert-count">--</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>类型</th>
+                            <th>状态</th>
+                            <th>提醒内容</th>
+                            <th>触发时间</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alert-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh-btn').addEventListener('click', loadAlerts);
+            document.getElementById('status-selector').addEventListener('change', loadAlerts);
+            document.getElementById('evaluate-btn').addEventListener('click', evaluateAlerts);
+            loadAlerts();
+        });
+
+        async function evaluateAlerts() {
+            const btn = document.getElementById('evaluate-btn');
+            btn.disabled = true;
+            try {
+                await fetch('/api/alerts/evaluate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
+                });
+                await loadAlerts();
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function loadAlerts() {
+            const status = encodeURIComponent(document.getElementById('status-selector').value);
+            const resp = await fetch(`/api/alerts${status ? `?status=${status}` : ''}`);
+            const data = await resp.json();
+            const items = data.items || [];
+            document.getElementById('alert-count').textContent = `${items.length} 条`;
+            renderTable(items);
+        }
+
+        function renderTable(items) {
+            const body = document.getElementById('alert-body');
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="7" class="empty">暂无提醒</td></tr>';
+                return;
+            }
+            body.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.alert_date || '-'}</td>
+                    <td class="code">${item.code}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.alert_type || '-'}</td>
+                    <td>${item.status || '-'}</td>
+                    <td>${item.message || '-'}</td>
+                    <td>${item.triggered_at || '-'}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

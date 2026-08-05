@@ -1,0 +1,277 @@
+{
+  "code": "002833",
+  "source": "eastmoney",
+  "updated_at": "2026-07-03 16:55:17",
+  "items": [
+    {
+      "date": "2026-05-22",
+      "main_net": -11526941.0,
+      "super_net": 16511412.0,
+      "large_net": -4984471.0,
+      "medium_net": -6605751.0,
+      "small_net": -4921190.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-05-25",
+      "main_net": -14794206.0,
+      "super_net": 16605719.0,
+      "large_net": -1811513.0,
+      "medium_net": -14348446.0,
+      "small_net": -445760.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-05-26",
+      "main_net": -11333536.0,
+      "super_net": 4322377.0,
+      "large_net": 7011160.0,
+      "medium_net": 2794793.0,
+      "small_net": -14128329.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-05-27",
+      "main_net": -19086365.0,
+      "super_net": 17748632.0,
+      "large_net": 1337734.0,
+      "medium_net": -13097483.0,
+      "small_net": -5988882.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-05-28",
+      "main_net": -6181611.0,
+      "super_net": -5641669.0,
+      "large_net": 11823279.0,
+      "medium_net": 413850.0,
+      "small_net": -6595461.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-05-29",
+      "main_net": 8704278.0,
+      "super_net": -17772931.0,
+      "large_net": 9068652.0,
+      "medium_net": 3395194.0,
+      "small_net": 5309084.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-01",
+      "main_net": -2421352.0,
+      "super_net": -5421225.0,
+      "large_net": 7842577.0,
+      "medium_net": 3010029.0,
+      "small_net": -5431381.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-02",
+      "main_net": -30768329.0,
+      "super_net": 28245934.0,
+      "large_net": 2522395.0,
+      "medium_net": -18397454.0,
+      "small_net": -12370875.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-03",
+      "main_net": -2721513.0,
+      "super_net": 2705902.0,
+      "large_net": 15611.0,
+      "medium_net": 2278921.0,
+      "small_net": -5000434.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-04",
+      "main_net": 11627486.0,
+      "super_net": -1600743.0,
+      "large_net": -10026743.0,
+      "medium_net": 13434820.0,
+      "small_net": -1807334.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-05",
+      "main_net": 6254641.0,
+      "super_net": -7930558.0,
+      "large_net": 1675918.0,
+      "medium_net": 2821458.0,
+      "small_net": 3433183.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-08",
+      "main_net": -8108410.0,
+      "super_net": 1735754.0,
+      "large_net": 6372657.0,
+      "medium_net": -4564172.0,
+      "small_net": -3544238.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-09",
+      "main_net": 1059384.0,
+      "super_net": 1203797.0,
+      "large_net": -2263180.0,
+      "medium_net": 1059384.0,
+      "small_net": 0.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-10",
+      "main_net": -2006550.0,
+      "super_net": 7756576.0,
+      "large_net": -5750026.0,
+      "medium_net": -1467330.0,
+      "small_net": -539220.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-11",
+      "main_net": -2723860.0,
+      "super_net": 1552595.0,
+      "large_net": 1171266.0,
+      "medium_net": -1498860.0,
+      "small_net": -1225000.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-12",
+      "main_net": 3377169.0,
+      "super_net": -14348008.0,
+      "large_net": 10970838.0,
+      "medium_net": 3377169.0,
+      "small_net": 0.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-15",
+      "main_net": -1359635.0,
+      "super_net": -2676514.0,
+      "large_net": 4036149.0,
+      "medium_net": 2945848.0,
+      "small_net": -4305483.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-16",
+      "main_net": 983062.0,
+      "super_net": -4579955.0,
+      "large_net": 3596892.0,
+      "medium_net": 2044714.0,
+      "small_net": -1061652.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-17",
+      "main_net": 449162.0,
+      "super_net": 941698.0,
+      "large_net": -1390859.0,
+      "medium_net": 449162.0,
+      "small_net": 0.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-18",
+      "main_net": -2130841.0,
+      "super_net": 3837253.0,
+      "large_net": -1706413.0,
+      "medium_net": 699795.0,
+      "small_net": -2830636.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-22",
+      "main_net": -1551242.0,
+      "super_net": -728691.0,
+      "large_net": 2279933.0,
+      "medium_net": 914384.0,
+      "small_net": -2465626.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-23",
+      "main_net": 6265885.0,
+      "super_net": -3959392.0,
+      "large_net": -2306493.0,
+      "medium_net": 2042557.0,
+      "small_net": 4223328.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-24",
+      "main_net": 22584867.0,
+      "super_net": -36805239.0,
+      "large_net": 14220371.0,
+      "medium_net": 1090894.0,
+      "small_net": 21493973.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-25",
+      "main_net": -16253839.0,
+      "super_net": -10898360.0,
+      "large_net": 27152199.0,
+      "medium_net": 3734080.0,
+      "small_net": -19987919.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-26",
+      "main_net": 6497936.0,
+      "super_net": 194187.0,
+      "large_net": -6692123.0,
+      "medium_net": 3486870.0,
+      "small_net": 3011066.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-29",
+      "main_net": 8099424.0,
+      "super_net": -10327374.0,
+      "large_net": 2227950.0,
+      "medium_net": 9156758.0,
+      "small_net": -1057334.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-06-30",
+      "main_net": 57067271.0,
+      "super_net": -40192014.0,
+      "large_net": -16875257.0,
+      "medium_net": 9350047.0,
+      "small_net": 47717224.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-07-01",
+      "main_net": 3777917.0,
+      "super_net": -1930734.0,
+      "large_net": -1847184.0,
+      "medium_net": 4934826.0,
+      "small_net": -1156909.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-07-02",
+      "main_net": -17218702.0,
+      "super_net": 13100878.0,
+      "large_net": 4117824.0,
+      "medium_net": -3004424.0,
+      "small_net": -14214278.0,
+      "estimated": false
+    },
+    {
+      "date": "2026-07-03",
+      "main_net": 23395093.0,
+      "super_net": -28861875.0,
+      "large_net": 5466783.0,
+      "medium_net": 21255136.0,
+      "small_net": 2139957.0,
+      "estimated": false
+    }
+  ]
+}

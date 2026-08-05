@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推荐复盘</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>推荐复盘</h1>
+                <p>统计已保存推荐在 1/3/5 个交易日后的表现</p>
+            </div>
+            <div class="header-right">
+                <input id="date-input" type="date">
+                <button id="refresh-btn" type="button">刷新</button>
+                <a class="back-link" href="/">返回首页</a>
+            </div>
+        </header>
+
+        <div class="cards" id="summary-cards"></div>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>配置回测对比</h3>
+                <span id="compare-count">--</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>配置</th>
+                            <th>周期</th>
+                            <th>样本</th>
+                            <th>胜率</th>
+                            <th>平均高点</th>
+                            <th>平均收盘</th>
+                            <th>平均重算分</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compare-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>复盘明细</h3>
+                <span id="review-count">--</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>推荐日</th>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>排名</th>
+                            <th>周期</th>
+                            <th>建仓分</th>
+                            <th>触发状态</th>
+                            <th>开盘收益</th>
+                            <th>最高收益</th>
+                            <th>收盘收益</th>
+                            <th>最大回撤</th>
+                            <th>买点</th>
+                            <th>止损</th>
+                        </tr>
+                    </thead>
+                    <tbody id="review-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh-btn').addEventListener('click', loadReview);
+            loadReview();
+        });
+
+        async function loadReview() {
+            const date = document.getElementById('date-input').value;
+            const query = date ? `?date=${encodeURIComponent(date)}` : '';
+            const [reviewResp, compareResp] = await Promise.all([
+                fetch(`/api/review${query}`),
+                fetch(`/api/review/config-compare${query}`),
+            ]);
+            const data = await reviewResp.json();
+            const compare = await compareResp.json();
+            renderSummary(data.summary || []);
+            renderRows(data.items || []);
+            renderCompare(compare.items || []);
+        }
+
+        function renderSummary(summary) {
+            const box = document.getElementById('summary-cards');
+            if (!summary.length) {
+                box.innerHTML = '<div class="card"><div class="card-label">暂无复盘</div><div class="card-value card-value-sm">等待未来K线</div></div>';
+                return;
+            }
+            box.innerHTML = summary.map(item => `
+                <div class="card">
+                    <div class="card-label">${item.horizon_days} 日复盘</div>
+                    <div class="card-value">${Number(item.win_rate || 0).toFixed(1)}%</div>
+                    <div class="muted">胜率 ${item.win_count}/${item.count}，高点 ${formatPct(item.avg_high_return)}，收盘 ${formatPct(item.avg_close_return)}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderRows(items) {
+            document.getElementById('review-count').textContent = `${items.length} 条`;
+            const body = document.getElementById('review-body');
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="13" class="empty">暂无复盘数据</td></tr>';
+                return;
+            }
+            body.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.trade_date}</td>
+                    <td class="code">${item.code}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${item.rank || '-'}</td>
+                    <td>${item.horizon_days}日</td>
+                    <td>${formatScore(item.tomorrow_score)}</td>
+                    <td>${item.entry_status || '-'}</td>
+                    <td class="${Number(item.open_return || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.open_return)}</td>
+                    <td class="${Number(item.high_return || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.high_return)}</td>
+                    <td class="${Number(item.close_return || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.close_return)}</td>
+                    <td class="${Number(item.max_drawdown || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.max_drawdown)}</td>
+                    <td>${item.triggered_entry ? '是' : '否'}</td>
+                    <td>${item.triggered_stop ? '是' : '否'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderCompare(items) {
+            document.getElementById('compare-count').textContent = `${items.length} 组`;
+            const body = document.getElementById('compare-body');
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="8" class="empty">暂无可对比数据，先保存推荐并运行复盘脚本</td></tr>';
+                return;
+            }
+            body.innerHTML = items.map(item => `
+                <tr>
+                    <td>${displayName(item.config_name)}</td>
+                    <td>${item.horizon_days}日</td>
+                    <td>${item.count}</td>
+                    <td class="${Number(item.win_rate || 0) >= 50 ? 'profit' : 'loss'}">${Number(item.win_rate || 0).toFixed(1)}%</td>
+                    <td class="${Number(item.avg_high_return || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.avg_high_return)}</td>
+                    <td class="${Number(item.avg_close_return || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.avg_close_return)}</td>
+                    <td>${Number(item.avg_config_score || 0).toFixed(1)}</td>
+                    <td>${item.is_default ? '当前默认' : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function formatScore(value) {
+            const val = Number(value || 0);
+            return val ? val.toFixed(1) : '-';
+        }
+
+        function formatPct(value) {
+            const val = Number(value || 0);
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+        }
+
+        function displayName(name) {
+            return {
+                default: '均衡配置',
+                conservative: '保守配置',
+                aggressive: '激进配置',
+            }[name] || name;
+        }
+    </script>
+</body>
+</html>

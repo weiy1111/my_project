@@ -1,0 +1,107 @@
+{
+  "code": "002436",
+  "source": "eastmoney",
+  "updated_at": "2026-06-12 11:11:41",
+  "items": [
+    {
+      "title": "兴森科技已回购57万股 成交金额1531万元",
+      "date": "2026-06-02 17:07:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202606023757614787.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "兴森科技：截至2026年5月31日公司累计回购股份565200股",
+      "date": "2026-06-02 20:50:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606023757814470.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "PCB概念午后回暖 兴森科技封涨停",
+      "date": "2026-05-29 13:25:55",
+      "source": "东方财富Choice数据",
+      "url": "http://stock.eastmoney.com/a/202605293754187897.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技持续走强，股价再创新高",
+      "date": "2026-05-26 09:40:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202605263749122788.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技股价创新高，融资客抢先加仓",
+      "date": "2026-05-25 09:44:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202605253747774264.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技股价又创新高，今日涨4.14%",
+      "date": "2026-05-21 10:56:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202605213744721469.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技成交额创2025年9月15日以来新高",
+      "date": "2026-05-21 14:15:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202605213744919852.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技：2025年年度权益分派实施公告",
+      "date": "2026-05-20 20:31:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202605203743778126.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技持续走强，股价再创新高",
+      "date": "2026-05-13 11:45:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202605133735691933.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "兴森科技：首次回购56.52万股",
+      "date": "2026-05-06 17:54:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202605063728751635.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    }
+  ],
+  "news_score": 24.0,
+  "summary": "消息面偏积极",
+  "positive_count": 3,
+  "negative_count": 0
+}

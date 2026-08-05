@@ -1,0 +1,111 @@
+{
+  "code": "002577",
+  "source": "eastmoney",
+  "updated_at": "2026-07-03 16:55:41",
+  "items": [
+    {
+      "title": "雷柏科技：截至6月30日公司暂未通过回购专用证券账户以集中竞价交易方式回购公司股份",
+      "date": "2026-07-01 20:44:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202607013790501716.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "雷柏科技：暂未回购公司股份",
+      "date": "2026-06-01 21:01:00",
+      "source": "证券日报",
+      "url": "http://finance.eastmoney.com/a/202606013756295828.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    },
+    {
+      "title": "【盘中播报】73只股长线走稳 站上年线",
+      "date": "2026-07-01 11:26:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202607013789923393.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "今日50只个股突破年线",
+      "date": "2026-06-18 12:01:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606183775918814.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "今日突破年线个股",
+      "date": "2026-06-18 15:14:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606183776106784.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "【盘中播报】65只个股突破年线",
+      "date": "2026-06-18 10:50:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606183775870455.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "电子竞技概念上涨2.04%，7股主力资金净流入超千万元",
+      "date": "2026-06-05 16:44:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202606053762007887.html",
+      "event_types": [],
+      "sentiment": "neutral",
+      "news_score": 0
+    },
+    {
+      "title": "雷柏科技：2025年净亏损471.47万元",
+      "date": "2026-04-27 21:40:00",
+      "source": "南方财经网",
+      "url": "http://finance.eastmoney.com/a/202604273720751216.html",
+      "event_types": [
+        "业绩下滑"
+      ],
+      "sentiment": "negative",
+      "news_score": -12
+    },
+    {
+      "title": "雷柏科技2025年亏损471万元，同比降112.8%",
+      "date": "2026-04-28 11:41:00",
+      "source": "财中社",
+      "url": "http://finance.eastmoney.com/a/202604283721933884.html",
+      "event_types": [
+        "业绩下滑"
+      ],
+      "sentiment": "negative",
+      "news_score": -12
+    },
+    {
+      "title": "雷柏科技：拟600万元—800万元回购股份",
+      "date": "2026-04-27 21:37:00",
+      "source": "证券时报网",
+      "url": "http://finance.eastmoney.com/a/202604273720750650.html",
+      "event_types": [
+        "分红/回购"
+      ],
+      "sentiment": "positive",
+      "news_score": 8
+    }
+  ],
+  "news_score": 0.0,
+  "summary": "消息面略偏积极",
+  "positive_count": 3,
+  "negative_count": 2
+}
