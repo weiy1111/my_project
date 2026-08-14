@@ -9,7 +9,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from discovery.scorer import DiscoveryFilters, discover_stocks
+from discovery.scorer import DISCOVERY_SPECIAL_UNIVERSES, LEADER_UNIVERSE, DiscoveryFilters, discover_stocks
+from discovery.rotation_pool import ROTATION_SECTOR_TAGS
 
 
 def _fmt_amount(value: float) -> str:
@@ -29,19 +30,31 @@ def main():
     parser.add_argument("--limit", type=int, default=40, help="资金流候选数量")
     parser.add_argument("--top", type=int, default=20, help="展示前N只")
     parser.add_argument("--min-score", type=float, default=0, help="最低综合评分")
+    parser.add_argument("--universe", default="tech", choices=["tech", "rotation", "all", *DISCOVERY_SPECIAL_UNIVERSES, *ROTATION_SECTOR_TAGS.keys()])
+    parser.add_argument("--short-term", action="store_true", help="按2-5日短线轮动分排序")
+    parser.add_argument("--leader", action="store_true", help="按近期情绪龙头分排序")
+    parser.add_argument("--include-chinext", action="store_true", help="轮动池包含创业板")
+    parser.add_argument("--include-star", action="store_true", help="轮动池包含科创板")
     args = parser.parse_args()
 
     result = discover_stocks(DiscoveryFilters(
         period=args.period,
         limit=args.limit,
         min_score=args.min_score,
+        tech_only=args.universe == "tech",
+        universe=args.universe,
+        short_term=args.short_term or args.leader or args.universe in DISCOVERY_SPECIAL_UNIVERSES,
+        sort_by="leader" if args.leader or args.universe in DISCOVERY_SPECIAL_UNIVERSES else ("short_term" if args.short_term else "score"),
+        include_chinext=args.include_chinext,
+        include_star=args.include_star,
+        allow_estimated_flow=args.short_term or args.leader or args.universe in DISCOVERY_SPECIAL_UNIVERSES,
     ))
 
     items = result["items"][:args.top]
-    print(f"\n大科技股票发现扫描 | 周期: {result['period']} | 科技股票池: {result.get('tech_pool_size', 0)} | 更新时间: {result['updated_at']}")
+    print(f"\n股票发现扫描 | scope: {result.get('scope')} | 周期: {result['period']} | 股票池: {result.get('pool_size', result.get('tech_pool_size', 0))} | 更新时间: {result['updated_at']}")
     print("=" * 96)
     print(f"{'序':>2} {'代码':<8} {'名称':<8} {'价格':>8} {'涨跌':>8} {'主力净额':>12} "
-          f"{'净占比':>8} {'3日资金':>10} {'30日资金':>10} {'评分':>7} {'建仓':>7} {'明日动作':<10}")
+          f"{'净占比':>8} {'3日资金':>10} {'30日资金':>10} {'评分':>7} {'短线':>7} {'龙头':>7} {'明日动作':<10}")
     print("-" * 96)
     for i, item in enumerate(items, 1):
         ai = item.get("ai", {})
@@ -49,7 +62,7 @@ def main():
               f"{item['price']:>8.2f} {item['pct_change']:>+7.2f}% "
               f"{_fmt_amount(item['main_net']):>12} {item['main_pct']:>+7.2f}% "
               f"{_fmt_amount(item.get('main_net_3d', 0)):>10} {_fmt_amount(item.get('main_net_30d', 0)):>10} "
-              f"{item['score']:>7.1f} {item.get('tomorrow_score', 0):>7.1f} {item.get('tomorrow_action', ai.get('action', '-')):<10}")
+              f"{item['score']:>7.1f} {item.get('short_term_score', 0):>7.1f} {item.get('leader_score', 0):>7.1f} {item.get('leader_action') or item.get('tomorrow_action', ai.get('action', '-')):<10}")
 
     if items:
         best = items[0]
@@ -60,6 +73,7 @@ def main():
         print(f"  风险提示: {'；'.join(ai['risks'])}")
         print(f"  观察点: {'；'.join(ai['watch'])}")
         print(f"  明日建仓: {best.get('tomorrow_action', '-')} | {best.get('tomorrow_reason', '-')} | {best.get('tomorrow_risk', '-')}")
+        print(f"  龙头判断: {best.get('leader_label', '-')} | {best.get('leader_reason', '-')} | {best.get('leader_risk', '-')}")
 
 
 if __name__ == "__main__":

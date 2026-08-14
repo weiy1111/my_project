@@ -415,7 +415,199 @@ def _build_support_resistance(df: pd.DataFrame) -> dict:
     }
 
 
-def _build_judgment(ma_result: dict, double_top: dict, volume: dict, trend: dict, bias: dict, df: pd.DataFrame) -> dict:
+def _nearest_levels(sr: dict, price: float) -> dict:
+    supports = sorted([_safe_float(x.get("price")) for x in sr.get("support", []) if _safe_float(x.get("price")) > 0])
+    resistances = sorted([_safe_float(x.get("price")) for x in sr.get("resistance", []) if _safe_float(x.get("price")) > 0])
+    below = [x for x in supports if x < price]
+    above = [x for x in resistances if x > price]
+    near_support = max(below) if below else (supports[0] if supports else 0)
+    near_resistance = min(above) if above else (resistances[-1] if resistances else 0)
+    return {
+        "near_support": round(near_support, 2) if near_support else 0,
+        "near_resistance": round(near_resistance, 2) if near_resistance else 0,
+    }
+
+
+def _analyze_candlestick(df: pd.DataFrame) -> dict:
+    """近 K 线形态分析，偏向短线买卖提示。"""
+    if len(df) < 3:
+        return {"pattern": "数据不足", "signal": "neutral", "detail": "K线不足"}
+
+    row = df.iloc[-1]
+    prev = df.iloc[-2]
+    open_p = _safe_float(row["open"])
+    close_p = _safe_float(row["close"])
+    high_p = _safe_float(row["high"])
+    low_p = _safe_float(row["low"])
+    prev_open = _safe_float(prev["open"])
+    prev_close = _safe_float(prev["close"])
+    rng = max(high_p - low_p, 1e-8)
+    body = abs(close_p - open_p)
+    upper_shadow = high_p - max(open_p, close_p)
+    lower_shadow = min(open_p, close_p) - low_p
+    body_pct = body / rng
+
+    pattern = "普通K线"
+    signal = "neutral"
+    detail = "未出现明确单K反转形态"
+
+    if close_p > open_p and prev_close < prev_open and close_p >= prev_open and open_p <= prev_close:
+        pattern = "看涨吞没"
+        signal = "bullish"
+        detail = "阳线反包前一日阴线，短线修复信号增强"
+    elif close_p < open_p and prev_close > prev_open and close_p <= prev_open and open_p >= prev_close:
+        pattern = "看跌吞没"
+        signal = "bearish"
+        detail = "阴线反包前一日阳线，短线抛压增强"
+    elif lower_shadow > body * 2 and upper_shadow < body * 1.2 and close_p >= open_p:
+        pattern = "锤子线"
+        signal = "bullish"
+        detail = "下影线较长，低位承接较强"
+    elif upper_shadow > body * 2 and lower_shadow < body * 1.2:
+        pattern = "长上影"
+        signal = "bearish"
+        detail = "上方抛压明显，追高风险上升"
+    elif body_pct < 0.18:
+        pattern = "十字星"
+        signal = "neutral"
+        detail = "多空分歧加大，需要次日方向确认"
+
+    return {
+        "pattern": pattern,
+        "signal": signal,
+        "body_pct": round(body_pct * 100, 1),
+        "upper_shadow_pct": round(upper_shadow / rng * 100, 1),
+        "lower_shadow_pct": round(lower_shadow / rng * 100, 1),
+        "detail": detail,
+    }
+
+
+def _build_trading_plan(ma_result: dict, double_top: dict, volume: dict, trend: dict, bias: dict, sr: dict, candle: dict, df: pd.DataFrame) -> dict:
+    """生成直观的今日买卖决策。"""
+    price = _safe_float(df["close"].iloc[-1])
+    high = _safe_float(df["high"].iloc[-1])
+    low = _safe_float(df["low"].iloc[-1])
+    ma5 = _safe_float(ma_result.get("ma5"))
+    ma10 = _safe_float(ma_result.get("ma10"))
+    ma20 = _safe_float(ma_result.get("ma20"))
+    levels = _nearest_levels(sr, price)
+    support = levels["near_support"]
+    resistance = levels["near_resistance"]
+
+    score = 50
+    reasons = []
+    warnings = []
+
+    if ma_result.get("arrangement") == "多头排列":
+        score += 12
+        reasons.append("均线多头排列")
+    elif ma_result.get("arrangement") == "空头排列":
+        score -= 18
+        warnings.append("均线空头排列")
+
+    if trend.get("direction") == "上升趋势":
+        score += 12
+        reasons.append("高低点结构偏上")
+    elif trend.get("direction") == "下降趋势":
+        score -= 16
+        warnings.append("高低点结构偏下")
+    elif trend.get("direction") in {"收敛三角", "震荡整理"}:
+        score -= 2
+        reasons.append("处于震荡/收敛，等待突破确认")
+
+    if volume.get("vol_trend") == "递增":
+        score += 8
+        reasons.append("量能递增")
+    elif volume.get("vol_trend") == "递减":
+        score -= 8
+        warnings.append("量能递减")
+
+    if "缩量" in str(volume.get("rush_vol_match", "")):
+        score -= 10
+        warnings.append("缩量冲高")
+    elif "放量" in str(volume.get("rush_vol_match", "")):
+        score += 8
+        reasons.append("放量冲高")
+
+    if candle.get("signal") == "bullish":
+        score += 8
+        reasons.append(candle.get("pattern", "看涨形态"))
+    elif candle.get("signal") == "bearish":
+        score -= 10
+        warnings.append(candle.get("pattern", "看跌形态"))
+
+    if abs(_safe_float(bias.get("ma20_bias"))) > 10:
+        score -= 10
+        warnings.append(f"MA20乖离偏大 {bias.get('ma20_bias', 0):+.1f}%")
+    elif _safe_float(bias.get("ma20_bias")) < -5:
+        score += 4
+        reasons.append("接近中期均线下方，低吸性价比提升")
+
+    if double_top.get("detected") and double_top.get("status") == "双头确认":
+        score -= 35
+        warnings.append("双头已确认")
+    elif double_top.get("detected") and double_top.get("status") == "疑似成型":
+        score -= 18
+        warnings.append("疑似双头，颈线需重点防守")
+
+    near_support_pct = (price / support - 1) * 100 if support else 0
+    near_resistance_pct = (resistance / price - 1) * 100 if resistance else 0
+    if support and 0 <= near_support_pct <= 2.5:
+        score += 7
+        reasons.append(f"距离支撑 {support:.2f} 较近")
+    if resistance and 0 <= near_resistance_pct <= 3:
+        score -= 7
+        warnings.append(f"距离压力 {resistance:.2f} 较近")
+
+    buy_zone_low = support if support else min(ma10, ma20) if ma10 and ma20 else low
+    buy_zone_high = price if support and near_support_pct <= 2.5 else min(price, ma5 if ma5 else price)
+    breakout_price = resistance if resistance else max(high, price * 1.03)
+    stop_loss = min([x for x in [support, ma20, low] if x > 0], default=price * 0.95)
+    reduce_price = resistance if resistance else price * 1.05
+    invalid_price = double_top.get("neckline") if double_top.get("status") in {"疑似成型", "双头确认"} else stop_loss
+
+    score = max(0, min(100, score))
+    if score >= 72:
+        action = "可小仓试买"
+        action_class = "buy"
+        summary = "趋势和量价条件偏强，可按触发价小仓参与。"
+    elif score >= 58:
+        action = "等待回踩/突破"
+        action_class = "wait"
+        summary = "结构没有明显破坏，但买点需要价格确认。"
+    elif score >= 42:
+        action = "观望"
+        action_class = "watch"
+        summary = "多空信号混杂，先看支撑和量能是否确认。"
+    elif score >= 28:
+        action = "减仓观察"
+        action_class = "sell"
+        summary = "风险信号偏多，反弹接近压力优先降低仓位。"
+    else:
+        action = "不买/止损优先"
+        action_class = "danger"
+        summary = "技术结构偏弱，先控制回撤。"
+
+    return {
+        "score": round(score, 1),
+        "action": action,
+        "action_class": action_class,
+        "summary": summary,
+        "buy_zone": f"{buy_zone_low:.2f} - {buy_zone_high:.2f}" if buy_zone_low and buy_zone_high else "--",
+        "breakout_trigger": round(breakout_price, 2),
+        "stop_loss": round(stop_loss, 2),
+        "reduce_price": round(reduce_price, 2),
+        "invalid_price": round(_safe_float(invalid_price), 2) if invalid_price else 0,
+        "near_support": support,
+        "near_resistance": resistance,
+        "support_distance_pct": round(near_support_pct, 2) if support else 0,
+        "resistance_distance_pct": round(near_resistance_pct, 2) if resistance else 0,
+        "reasons": reasons[:6],
+        "warnings": warnings[:6],
+    }
+
+
+def _build_judgment(ma_result: dict, double_top: dict, volume: dict, trend: dict, bias: dict, sr: dict, trading_plan: dict, df: pd.DataFrame) -> dict:
     """综合研判：给出结论和操作建议。"""
     price = _safe_float(df["close"].iloc[-1])
     risk_level = "中"
@@ -470,8 +662,8 @@ def _build_judgment(ma_result: dict, double_top: dict, volume: dict, trend: dict
         action_buy = f"等放量突破前高或回踩颈线 {neckline:.2f} 不破再接"
     else:
         # 用支撑压力给建议
-        supports = [s["price"] for s in _build_support_resistance(df)["support"] if s["price"] < price]
-        resistances = [r["price"] for r in _build_support_resistance(df)["resistance"] if r["price"] > price]
+        supports = [s["price"] for s in sr["support"] if s["price"] < price]
+        resistances = [r["price"] for r in sr["resistance"] if r["price"] > price]
         if supports:
             action_hold = f"支撑位 {max(supports):.2f} 不破可持有"
         if resistances:
@@ -482,8 +674,8 @@ def _build_judgment(ma_result: dict, double_top: dict, volume: dict, trend: dict
 
     return {
         "conclusion": "；".join(conclusions) if conclusions else "暂无明确信号",
-        "action_hold": action_hold,
-        "action_buy": action_buy,
+        "action_hold": action_hold or trading_plan.get("summary", ""),
+        "action_buy": action_buy or trading_plan.get("action", ""),
         "risk_level": risk_level,
     }
 
@@ -508,6 +700,12 @@ def build_tech_analysis(kline: pd.DataFrame | None) -> dict:
             "trend": {"direction": "数据不足", "highs_dir": "数据不足", "lows_dir": "数据不足",
                       "stage": "数据不足", "recent_highs": [], "recent_lows": []},
             "bias": {"ma5_bias": 0, "ma10_bias": 0, "ma20_bias": 0, "bias_level": "未知"},
+            "candlestick": {"pattern": "数据不足", "signal": "neutral", "detail": "K 线不足 20 根"},
+            "trading_plan": {"score": 0, "action": "数据不足", "action_class": "watch", "summary": "K线不足，无法判断",
+                             "buy_zone": "--", "breakout_trigger": 0, "stop_loss": 0, "reduce_price": 0,
+                             "invalid_price": 0, "near_support": 0, "near_resistance": 0,
+                             "support_distance_pct": 0, "resistance_distance_pct": 0,
+                             "reasons": [], "warnings": []},
             "judgment": {"conclusion": "数据不足", "action_hold": "", "action_buy": "", "risk_level": "未知"},
             "chart": {"dates": [], "ohlc": [], "volumes": [], "ma5": [], "ma10": [], "ma20": [],
                       "resistance_lines": [], "support_lines": []},
@@ -549,7 +747,9 @@ def build_tech_analysis(kline: pd.DataFrame | None) -> dict:
     volume = _analyze_volume(df)
     trend = _analyze_trend(df)
     bias = _analyze_bias(df)
-    judgment = _build_judgment(ma_result, double_top, volume, trend, bias, df)
+    candle = _analyze_candlestick(df)
+    trading_plan = _build_trading_plan(ma_result, double_top, volume, trend, bias, sr, candle, df)
+    judgment = _build_judgment(ma_result, double_top, volume, trend, bias, sr, trading_plan, df)
 
     # ---- 图表数据 ----
     chart_df = df.tail(60)
@@ -622,6 +822,8 @@ def build_tech_analysis(kline: pd.DataFrame | None) -> dict:
         "volume": volume,
         "trend": trend,
         "bias": bias,
+        "candlestick": candle,
+        "trading_plan": trading_plan,
         "judgment": judgment,
         "chart": chart,
     }

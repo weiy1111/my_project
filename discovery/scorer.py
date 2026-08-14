@@ -4,19 +4,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager
+import logging
 import math
 import os
+import json
 import time
 
 import pandas as pd
+import requests
 
 from discovery.ai_assistant import build_stock_brief
 from discovery.accumulation import build_accumulation_analysis
+from discovery.announcements import get_stock_announcements
 from discovery.cache_store import history_cache_path, is_fresh, kline_cache_path, news_cache_path, read_df, read_json, write_df
 from discovery.db import DEFAULT_SCORE_CONFIG, get_score_config
 from discovery.fund_flow import get_fund_flow_rank
 from discovery.news import analyze_news_items
+from discovery.rotation_pool import NON_TECH_UNIVERSES, ROTATION_SECTOR_TAGS, get_rotation_codes, get_rotation_sector_names
 from discovery.tech_pool import get_big_tech_codes, get_code_sector_names
 
 
@@ -25,20 +30,40 @@ _CACHE_TTL = 90
 _KLINE_CACHE: dict[str, tuple[float, pd.DataFrame]] = {}
 _KLINE_CACHE_TTL = 300
 _KLINE_DISK_CACHE_TTL = 21600
+_KLINE_MAX_STALE_DAYS = 7
 _HISTORY_FEATURE_CACHE: dict[str, tuple[float, dict]] = {}
 _HISTORY_FEATURE_CACHE_TTL = 300
 _NEWS_FEATURE_CACHE: dict[str, tuple[float, dict]] = {}
 _NEWS_FEATURE_CACHE_TTL = 600
+_ANN_FEATURE_CACHE: dict[str, tuple[float, dict]] = {}
+_ANN_FEATURE_CACHE_TTL = 600
 _SCORE_CONFIG_CACHE: tuple[float, dict] | None = None
 _SCORE_CONFIG_TTL = 60
+ROTATION_UNIVERSES = set(ROTATION_SECTOR_TAGS.keys())
+LEADER_UNIVERSE = "leader"
+MAINLINE_UNIVERSE = "mainline"
+NON_TECH_LEADER_UNIVERSE = "non_tech_leader"
+BALANCED_UNIVERSE = "balanced"
+DISCOVERY_SPECIAL_UNIVERSES = {
+    LEADER_UNIVERSE,
+    MAINLINE_UNIVERSE,
+    NON_TECH_LEADER_UNIVERSE,
+    BALANCED_UNIVERSE,
+}
+LOGGER = logging.getLogger(__name__)
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    "Connection": "keep-alive",
+}
 
 
 @contextmanager
 def _quiet_external_output():
     """Suppress noisy progress bars printed by data providers."""
-    with open(os.devnull, "w") as sink:
-        with redirect_stdout(sink), redirect_stderr(sink):
-            yield
+    yield
 
 
 @dataclass
@@ -51,6 +76,11 @@ class DiscoveryFilters:
     tech_only: bool = True
     sort_by: str = "score"
     strict: bool = False
+    universe: str = "tech"
+    short_term: bool = False
+    include_chinext: bool = True
+    include_star: bool = False
+    allow_estimated_flow: bool = False
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -60,6 +90,16 @@ def _safe_float(value, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _safe_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return bool(value)
 
 
 def _active_score_config() -> dict:
@@ -87,7 +127,160 @@ def _compute_rsi(close: pd.Series, period: int = 14) -> float:
     return _safe_float(rsi.iloc[-1], 50.0)
 
 
-def _get_akshare_daily_klines(code: str, count: int = 80) -> pd.DataFrame | None:
+def _is_kline_current(df: pd.DataFrame | None) -> bool:
+    if df is None or df.empty:
+        return False
+    try:
+        if "date" in df.columns:
+            last_date = pd.to_datetime(df["date"], errors="coerce").dropna().max()
+        else:
+            last_date = pd.to_datetime(df.index, errors="coerce").dropna().max()
+        if pd.isna(last_date):
+            return False
+        age_days = (pd.Timestamp(datetime.now().date()) - pd.Timestamp(last_date).normalize()).days
+        return age_days <= _KLINE_MAX_STALE_DAYS
+    except Exception:
+        return False
+
+
+def _prepare_cached_kline_df(df: pd.DataFrame | None, count: int) -> pd.DataFrame | None:
+    if df is None or df.empty:
+        return None
+    df = df.copy()
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"]).set_index("date").sort_index()
+    return df.tail(count)
+
+
+def _code_to_em_secid(code: str) -> str:
+    return f"1.{code}" if code.startswith("6") else f"0.{code}"
+
+
+def _code_to_tencent(code: str) -> str:
+    return f"sh{code}" if code.startswith(("5", "6", "9")) else f"sz{code}"
+
+
+def _code_to_sina(code: str) -> str:
+    return f"sh{code}" if code.startswith(("5", "6", "9")) else f"sz{code}"
+
+
+def _normalize_kline_rows(rows: list[dict], count: int) -> pd.DataFrame | None:
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return None
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    for col in ["open", "high", "low", "close", "volume", "amount"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    if "amount" not in df.columns:
+        df["amount"] = 0.0
+    df = df.dropna(subset=["date", "close", "volume"]).set_index("date").sort_index()
+    return df.tail(count) if not df.empty else None
+
+
+def _fetch_tencent_daily_klines(code: str, count: int = 80) -> pd.DataFrame | None:
+    tc_code = _code_to_tencent(code)
+    url = f"http://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={tc_code},day,,,{count},qfq"
+    headers = {**_BROWSER_HEADERS, "Referer": "https://gu.qq.com"}
+    resp = requests.get(url, headers=headers, timeout=10)
+    resp.raise_for_status()
+    body = resp.json()
+    data = body.get("data") or {}
+    stock = next(iter(data.values()), {}) if isinstance(data, dict) else {}
+    klines = stock.get("qfqday") or stock.get("day") or []
+    rows = []
+    for item in klines:
+        if not isinstance(item, list) or len(item) < 6:
+            continue
+        rows.append({
+            "date": item[0],
+            "open": item[1],
+            "close": item[2],
+            "high": item[3],
+            "low": item[4],
+            "volume": _safe_float(item[5]) * 100,
+            "amount": item[6] if len(item) > 6 else 0.0,
+        })
+    return _normalize_kline_rows(rows, count)
+
+
+def _fetch_sina_daily_klines(code: str, count: int = 80) -> pd.DataFrame | None:
+    symbol = _code_to_sina(code)
+    url = (
+        "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+        f"CN_MarketData.getKLineData?symbol={symbol}&scale=240&ma=no&datalen={max(count, 120)}"
+    )
+    headers = {**_BROWSER_HEADERS, "Referer": "https://finance.sina.com.cn"}
+    resp = requests.get(url, headers=headers, timeout=10)
+    resp.raise_for_status()
+    text = resp.text.strip()
+    if not text or text == "null":
+        return None
+    json_text = text[: text.rfind("]") + 1] if "]" in text else text
+    raw = json.loads(json_text)
+    rows = []
+    for item in raw:
+        rows.append({
+            "date": item.get("day"),
+            "open": item.get("open"),
+            "high": item.get("high"),
+            "low": item.get("low"),
+            "close": item.get("close"),
+            "volume": item.get("volume"),
+            "amount": 0.0,
+        })
+    return _normalize_kline_rows(rows, count)
+
+
+def _fetch_eastmoney_daily_klines(code: str, count: int = 80) -> pd.DataFrame | None:
+    end = datetime.now().strftime("%Y%m%d")
+    start = (datetime.now() - pd.Timedelta(days=count * 4)).strftime("%Y%m%d")
+    params = {
+        "secid": _code_to_em_secid(code),
+        "fields1": "f1,f2,f3,f4,f5,f6",
+        "fields2": "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61",
+        "klt": "101",
+        "fqt": "1",
+        "beg": start,
+        "end": end,
+        "_": int(time.time() * 1000),
+    }
+    headers = {**_BROWSER_HEADERS, "Referer": "https://quote.eastmoney.com/"}
+    resp = requests.get(
+        "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+        params=params,
+        headers=headers,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    klines = ((resp.json().get("data") or {}).get("klines") or [])
+    rows = []
+    for item in klines:
+        parts = str(item).split(",")
+        if len(parts) < 7:
+            continue
+        rows.append({
+            "date": parts[0],
+            "open": parts[1],
+            "close": parts[2],
+            "high": parts[3],
+            "low": parts[4],
+            "volume": parts[5],
+            "amount": parts[6],
+        })
+    return _normalize_kline_rows(rows, count)
+
+
+def _write_kline_result(code: str, df: pd.DataFrame, disk_path) -> pd.DataFrame:
+    now = time.time()
+    result = df.copy()
+    _KLINE_CACHE[code] = (now, result)
+    write_df(disk_path, result.reset_index())
+    return result.copy()
+
+
+def _get_akshare_daily_klines(code: str, count: int = 80, *, force_refresh: bool = False) -> pd.DataFrame | None:
     """获取股票发现所需日 K。
 
     这里刻意不复用 data.realtime.get_recent_klines，因为那个函数会在 AKShare
@@ -95,17 +288,14 @@ def _get_akshare_daily_klines(code: str, count: int = 80) -> pd.DataFrame | None
     """
     now = time.time()
     cached = _KLINE_CACHE.get(code)
-    if cached and now - cached[0] < _KLINE_CACHE_TTL:
+    if not force_refresh and cached and now - cached[0] < _KLINE_CACHE_TTL and _is_kline_current(cached[1]):
         return cached[1].copy()
     disk_path = kline_cache_path(code)
-    if is_fresh(disk_path, _KLINE_DISK_CACHE_TTL):
-        disk_df = read_df(disk_path)
-        if disk_df is not None and not disk_df.empty:
-            if "date" in disk_df.columns:
-                disk_df["date"] = pd.to_datetime(disk_df["date"], errors="coerce")
-                disk_df = disk_df.dropna(subset=["date"]).set_index("date").sort_index()
-            _KLINE_CACHE[code] = (now, disk_df.tail(count))
-            return disk_df.tail(count).copy()
+    if not force_refresh and is_fresh(disk_path, _KLINE_DISK_CACHE_TTL):
+        disk_df = _prepare_cached_kline_df(read_df(disk_path), count)
+        if disk_df is not None and not disk_df.empty and _is_kline_current(disk_df):
+            _KLINE_CACHE[code] = (now, disk_df)
+            return disk_df.copy()
 
     try:
         import akshare as ak
@@ -145,17 +335,24 @@ def _get_akshare_daily_klines(code: str, count: int = 80) -> pd.DataFrame | None
             return None
 
         result = df.tail(count)
-        _KLINE_CACHE[code] = (now, result)
-        write_df(disk_path, result.reset_index())
-        return result.copy()
-    except BaseException:
-        disk_df = read_df(disk_path)
+        return _write_kline_result(code, result, disk_path)
+    except BaseException as exc:
+        LOGGER.debug("AKShare日K获取失败 %s: %s", code, exc)
+        for provider, fetcher in (
+            ("腾讯日K", _fetch_tencent_daily_klines),
+            ("新浪日K", _fetch_sina_daily_klines),
+            ("东方财富日K", _fetch_eastmoney_daily_klines),
+        ):
+            try:
+                result = fetcher(code, count=count)
+                if result is not None and not result.empty:
+                    return _write_kline_result(code, result, disk_path)
+            except BaseException as provider_exc:
+                LOGGER.debug("%s备用源失败 %s: %s", provider, code, provider_exc)
+        disk_df = _prepare_cached_kline_df(read_df(disk_path), count)
         if disk_df is None or disk_df.empty:
             return None
-        if "date" in disk_df.columns:
-            disk_df["date"] = pd.to_datetime(disk_df["date"], errors="coerce")
-            disk_df = disk_df.dropna(subset=["date"]).set_index("date").sort_index()
-        return disk_df.tail(count).copy()
+        return disk_df.copy()
 
 
 def _get_kline_metrics_from_df(df: pd.DataFrame | None) -> dict:
@@ -293,6 +490,180 @@ def _money_structure(row: pd.Series) -> dict:
     }
 
 
+def _short_term_score(
+    *,
+    flow: float,
+    trend: float,
+    volume: float,
+    risk: float,
+    pct_change: float,
+    main_net: float,
+    main_pct: float,
+    money_structure: float,
+    announcement_risk: float,
+    news_score: float,
+    rsi: float,
+) -> float:
+    """Score for 2-5 trading day rotation candidates."""
+    score = (
+        flow * 0.28
+        + trend * 0.20
+        + volume * 0.18
+        + money_structure * 0.16
+        + max(min(main_pct, 25.0), -10.0) * 0.75
+        + math.tanh(main_net / 2.5e8) * 12
+        + max(min(news_score, 20.0), -20.0) * 0.20
+        + 8
+        - risk * 0.14
+        - min(16.0, announcement_risk * 0.18)
+    )
+    if 1.0 <= pct_change <= 5.5:
+        score += 7
+    elif 5.5 < pct_change <= 8.0:
+        score -= 4
+    elif pct_change > 8.0:
+        score -= 14
+    elif pct_change < -2.0:
+        score -= 8
+    if 45 <= rsi <= 68:
+        score += 5
+    elif rsi >= 75:
+        score -= 8
+    if main_net <= 0:
+        score -= 12
+    return max(0.0, min(100.0, score))
+
+
+def _leader_signal(stock: dict) -> dict:
+    """Score recent market leaders with visible sentiment impact."""
+    pct_change = _safe_float(stock.get("pct_change"))
+    main_net = _safe_float(stock.get("main_net"))
+    main_pct = _safe_float(stock.get("main_pct"))
+    amount = _safe_float(stock.get("amount"))
+    flow = _safe_float(stock.get("flow_score"), 50.0)
+    trend = _safe_float(stock.get("trend_score"), 45.0)
+    volume = _safe_float(stock.get("volume_score"), 45.0)
+    risk = _safe_float(stock.get("risk_score"), 35.0)
+    rsi = _safe_float(stock.get("rsi"), 50.0)
+    ret5 = _safe_float(stock.get("ret5"))
+    ret20 = _safe_float(stock.get("ret20"))
+    volume_ratio = _safe_float(stock.get("volume_ratio"), 1.0)
+    money_structure = _safe_float(stock.get("money_structure_score"), 50.0)
+    big_order_net = _safe_float(stock.get("big_order_net"))
+    small_net = _safe_float(stock.get("small_net"))
+    announcement_risk = _safe_float(stock.get("announcement_risk_score"))
+    news_score = _safe_float(stock.get("news_score"))
+
+    score = 36.0
+    score += (flow - 50) * 0.24
+    score += (trend - 50) * 0.20
+    score += (volume - 50) * 0.18
+    score += (money_structure - 50) * 0.18
+    score += math.tanh(main_net / 2.5e8) * 15
+    score += max(min(main_pct, 18.0), -8.0) * 0.65
+    score += max(min(news_score, 20.0), -20.0) * 0.12
+
+    reasons: list[str] = []
+    risks: list[str] = []
+
+    if amount >= 2.0e9:
+        score += 8
+        reasons.append("成交额达到市场关注级别")
+    elif amount >= 8.0e8:
+        score += 5
+        reasons.append("成交额较活跃")
+    elif amount and amount < 2.0e8:
+        score -= 8
+        risks.append("成交额偏小，情绪带动性不足")
+
+    if 3.0 <= pct_change <= 7.5:
+        score += 9
+        reasons.append("日内涨幅强但未极端过热")
+    elif 7.5 < pct_change < 10.5:
+        score += 5
+        risks.append("涨幅接近高潮，次日分歧可能加大")
+    elif 0.5 <= pct_change < 3.0:
+        score += 3
+        reasons.append("温和走强，仍有发酵空间")
+    elif pct_change < 0:
+        score -= 14
+        risks.append("当日未体现领涨效应")
+
+    if 4.0 <= ret5 <= 28.0:
+        score += 8
+        reasons.append("近5日趋势有辨识度")
+    elif ret5 > 35.0:
+        score -= 8
+        risks.append("近5日涨幅过大，追高风险上升")
+    elif ret5 < -3.0:
+        score -= 6
+        risks.append("近5日仍偏弱")
+
+    if 8.0 <= ret20 <= 55.0:
+        score += 5
+    elif ret20 > 75.0:
+        score -= 8
+        risks.append("近20日涨幅过大，筹码兑现压力偏高")
+
+    if 1.25 <= volume_ratio <= 3.8:
+        score += 7
+        reasons.append("量能有效放大")
+    elif volume_ratio > 5.0:
+        score -= 8
+        risks.append("量能异常放大，可能是分歧释放")
+    elif volume_ratio < 0.8:
+        score -= 6
+        risks.append("量能不足")
+
+    if main_net > 0 and big_order_net > 0:
+        score += 7
+        reasons.append("主力和大单同步流入")
+    if big_order_net < 0 and small_net > 0:
+        score -= 18
+        risks.append("大单流出、小单流入，疑似接盘结构")
+    elif main_net < 0:
+        score -= 12
+        risks.append("主力资金净流出")
+
+    if 50 <= rsi <= 72:
+        score += 4
+    elif rsi > 78:
+        score -= 8
+        risks.append("RSI 过热")
+    score -= min(14.0, announcement_risk * 0.12)
+    score -= risk * 0.08
+
+    score = max(0.0, min(100.0, score))
+    if score >= 78 and pct_change < 8:
+        label = "情绪龙头"
+        action = "可小仓试仓"
+    elif score >= 70:
+        label = "板块活跃核心"
+        action = "等待回踩"
+    elif score >= 62:
+        label = "趋势活跃股"
+        action = "只观察"
+    elif pct_change >= 8:
+        label = "冲高分歧股"
+        action = "不追高"
+    else:
+        label = "非龙头"
+        action = "暂不优先"
+
+    if big_order_net < 0 and small_net > 0:
+        action = "减仓观察"
+    elif pct_change >= 9:
+        action = "不追高"
+
+    return {
+        "leader_score": round(score, 2),
+        "leader_label": label,
+        "leader_action": action,
+        "leader_reason": "；".join(reasons[:4]) if reasons else "缺少明确情绪龙头信号",
+        "leader_risk": "；".join(risks[:4]) if risks else "未见明显情绪退潮信号",
+    }
+
+
 def _history_flow_features(code: str) -> dict:
     """Read cached 30-day flow features without blocking the main ranking scan.
 
@@ -377,6 +748,9 @@ def _news_features(code: str) -> dict:
             "news_summary": data.get("summary") or "消息面中性",
             "news_positive_count": int(data.get("positive_count") or 0),
             "news_negative_count": int(data.get("negative_count") or 0),
+            "news_source_provider": data.get("source_provider") or data.get("source") or "",
+            "news_source_state": data.get("source_state") or "",
+            "news_source_quality": _safe_float(data.get("source_quality"), 50.0),
         }
     elif items:
         analysis = analyze_news_items(items)
@@ -385,6 +759,9 @@ def _news_features(code: str) -> dict:
             "news_summary": analysis.get("summary") or "消息面中性",
             "news_positive_count": int(analysis.get("positive_count") or 0),
             "news_negative_count": int(analysis.get("negative_count") or 0),
+            "news_source_provider": data.get("source_provider") or data.get("source") or "cache",
+            "news_source_state": data.get("source_state") or "cached",
+            "news_source_quality": _safe_float(data.get("source_quality"), 68.0),
         }
     else:
         result = {
@@ -392,8 +769,31 @@ def _news_features(code: str) -> dict:
             "news_summary": "暂无消息面缓存",
             "news_positive_count": 0,
             "news_negative_count": 0,
+            "news_source_provider": "missing",
+            "news_source_state": "missing",
+            "news_source_quality": 20.0,
         }
     _NEWS_FEATURE_CACHE[code] = (now, result)
+    return result
+
+
+def _announcement_features(code: str) -> dict:
+    now = time.time()
+    cached = _ANN_FEATURE_CACHE.get(code)
+    if cached and now - cached[0] < _ANN_FEATURE_CACHE_TTL:
+        return cached[1]
+    data = get_stock_announcements(code, refresh=False)
+    result = {
+        "announcement_risk_score": _safe_float(data.get("announcement_risk_score")),
+        "announcement_risk_level": data.get("announcement_risk_level") or "none",
+        "announcement_risk_summary": data.get("announcement_risk_summary") or "暂无公告风险缓存",
+        "announcement_risk_types": data.get("announcement_risk_types") or [],
+        "announcement_risk_count": int(data.get("announcement_risk_count") or 0),
+        "announcement_source_provider": data.get("source_provider") or data.get("source") or "",
+        "announcement_source_state": data.get("source_state") or "",
+        "announcement_source_quality": _safe_float(data.get("source_quality"), 20.0),
+    }
+    _ANN_FEATURE_CACHE[code] = (now, result)
     return result
 
 
@@ -639,6 +1039,9 @@ def _strict_quality_gate(stock: dict) -> dict:
     small_net = _safe_float(stock.get("small_net"))
     structure_score = _safe_float(stock.get("money_structure_score"), 50)
     structure_label = stock.get("money_structure_label") or ""
+    announcement_risk = _safe_float(stock.get("announcement_risk_score"))
+    announcement_level = stock.get("announcement_risk_level") or "none"
+    announcement_types = stock.get("announcement_risk_types") or []
 
     if main_net <= 0:
         reject_reasons.append("当日主力净流出")
@@ -670,6 +1073,14 @@ def _strict_quality_gate(stock: dict) -> dict:
         warnings.append("历史资金含估算数据")
     if news_score <= -12:
         reject_reasons.append("消息面偏负面")
+    if announcement_risk >= 70 or announcement_level == "high":
+        labels = "、".join(announcement_types[:3]) or "公告高风险"
+        reject_reasons.append(f"公告风险较高：{labels}")
+    elif announcement_risk >= 40 or announcement_level == "medium":
+        labels = "、".join(announcement_types[:3]) or "公告风险"
+        warnings.append(f"公告存在风险项：{labels}")
+    elif announcement_risk > 0:
+        warnings.append("公告有轻微风险提示")
     if big_order_net < 0 and small_net > 0:
         reject_reasons.append("大单流出、小单流入，疑似散户接盘")
     if structure_score < 45:
@@ -691,24 +1102,34 @@ def _strict_quality_gate(stock: dict) -> dict:
     }
 
 
-def _score_row(row: pd.Series) -> dict:
+def _score_row(
+    row: pd.Series,
+    *,
+    force_refresh: bool = False,
+    kline_df: pd.DataFrame | None = None,
+) -> dict:
     code = str(row["code"]).zfill(6)
-    kline_df = _get_akshare_daily_klines(code, count=80)
+    kline_df = kline_df if kline_df is not None else _get_akshare_daily_klines(code, count=80, force_refresh=force_refresh)
     kline = _get_kline_metrics_from_df(kline_df)
     accumulation = build_accumulation_analysis(kline_df)
     history = _history_flow_features(code)
     news = _news_features(code)
+    announcements = _announcement_features(code)
 
     main_net = _safe_float(row.get("main_net"))
     main_pct = _safe_float(row.get("main_pct"))
     pct_change = _safe_float(row.get("pct_change"))
     flow = _flow_score(main_net, main_pct)
     persistence = _safe_float(history.get("flow_persistence_score"), 45.0)
-    quality = _safe_float(history.get("data_quality_score"), 55.0)
+    history_quality = _safe_float(history.get("data_quality_score"), 55.0)
+    current_flow_quality = _safe_float(row.get("source_quality"), 55.0)
+    quality = history_quality * 0.7 + current_flow_quality * 0.3
     trend = _safe_float(kline.get("trend_score"), 45.0)
     volume = _safe_float(kline.get("volume_score"), 45.0)
     risk = _safe_float(kline.get("risk_score"), 35.0)
     news_score = _safe_float(news.get("news_score"))
+    announcement_risk = _safe_float(announcements.get("announcement_risk_score"))
+    money_structure = _money_structure(row)
     config = _active_score_config()
 
     score = (
@@ -719,6 +1140,20 @@ def _score_row(row: pd.Series) -> dict:
         + quality * _safe_float(config.get("data_quality_weight"), 0.06)
         + news_score * _safe_float(config.get("news_weight"), 0.10)
         - risk * abs(_safe_float(config.get("risk_weight"), -0.12))
+    )
+    score -= min(18.0, announcement_risk * 0.16)
+    short_term_score = _short_term_score(
+        flow=flow,
+        trend=trend,
+        volume=volume,
+        risk=risk,
+        pct_change=pct_change,
+        main_net=main_net,
+        main_pct=main_pct,
+        money_structure=_safe_float(money_structure.get("money_structure_score"), 50.0),
+        announcement_risk=announcement_risk,
+        news_score=news_score,
+        rsi=_safe_float(kline.get("rsi"), 50),
     )
     if pct_change < -5:
         score -= 8
@@ -735,6 +1170,7 @@ def _score_row(row: pd.Series) -> dict:
         "name": row.get("name", ""),
         "price": _safe_float(row.get("price")),
         "pct_change": pct_change,
+        "amount": _safe_float(row.get("amount")),
         "main_net": main_net,
         "main_pct": main_pct,
         "super_net": _safe_float(row.get("super_net")),
@@ -743,20 +1179,28 @@ def _score_row(row: pd.Series) -> dict:
         "small_net": _safe_float(row.get("small_net")),
         "period": row.get("period", ""),
         "score": round(score, 2),
+        "short_term_score": round(short_term_score, 2),
         "flow_score": round(flow, 2),
         "flow_persistence_score": round(persistence, 2),
         "data_quality_score": round(quality, 2),
+        "history_data_quality_score": round(history_quality, 2),
+        "current_flow_source_provider": row.get("source_provider", ""),
+        "current_flow_source_state": row.get("source_state", ""),
+        "current_flow_source_quality": round(current_flow_quality, 2),
+        "current_flow_is_realtime": _safe_bool(row.get("is_realtime", False)),
         "trend_score": round(trend, 2),
         "volume_score": round(volume, 2),
         "risk_score": round(risk, 2),
         "updated_at": row.get("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-        "sectors": get_code_sector_names(code),
+        "sectors": list(dict.fromkeys([*get_code_sector_names(code), *get_rotation_sector_names(code)])),
         **kline,
         **history,
         **news,
+        **announcements,
         **accumulation,
     }
-    item.update(_money_structure(row))
+    item.update(money_structure)
+    item.update(_leader_signal(item))
     item.update(_tomorrow_entry(item))
     item.update(_build_entry_triggers(item))
     item.update(_strict_quality_gate(item))
@@ -765,6 +1209,14 @@ def _score_row(row: pd.Series) -> dict:
 
 
 def _sort_items(items: list[dict], sort_by: str) -> list[dict]:
+    if sort_by == "leader":
+        return sorted(
+            items,
+            key=lambda x: (x.get("leader_score", 0), x.get("short_term_score", 0), x.get("amount", 0)),
+            reverse=True,
+        )
+    if sort_by in ("short", "short_term"):
+        return sorted(items, key=lambda x: (x.get("short_term_score", 0), x.get("main_net", 0)), reverse=True)
     if sort_by == "tomorrow":
         return sorted(items, key=lambda x: (x.get("tomorrow_score", 0), x.get("score", 0)), reverse=True)
     if sort_by == "flow_persistence":
@@ -782,17 +1234,137 @@ def _sort_items(items: list[dict], sort_by: str) -> list[dict]:
     return sorted(items, key=lambda x: x["score"], reverse=True)
 
 
-def get_stock_snapshot(code: str, period: str = "即时") -> dict | None:
-    """Build a scored snapshot for a single allowed stock code."""
+def _primary_sector_key(item: dict) -> str:
+    code = str(item.get("code", "")).zfill(6)
+    for key, info in ROTATION_SECTOR_TAGS.items():
+        if code in {str(raw).zfill(6) for raw in info.get("codes", [])}:
+            return key
+    sectors = item.get("sectors") or []
+    return sectors[0] if sectors else "tech"
+
+
+def _apply_discovery_mode(items: list[dict], filters: DiscoveryFilters) -> list[dict]:
+    if filters.universe == NON_TECH_LEADER_UNIVERSE:
+        return [
+            item for item in items
+            if _primary_sector_key(item) in NON_TECH_UNIVERSES
+            and item.get("leader_score", 0) >= filters.min_score
+        ]
+
+    if filters.universe in {LEADER_UNIVERSE, MAINLINE_UNIVERSE}:
+        return [
+            item for item in items
+            if item.get("leader_score", 0) >= max(58.0, filters.min_score)
+        ]
+
+    if filters.universe == BALANCED_UNIVERSE:
+        buckets: dict[str, list[dict]] = {}
+        for item in items:
+            buckets.setdefault(_primary_sector_key(item), []).append(item)
+        balanced: list[dict] = []
+        per_sector = 3
+        for _, bucket in sorted(
+            buckets.items(),
+            key=lambda kv: max((x.get("leader_score", 0) for x in kv[1]), default=0),
+            reverse=True,
+        ):
+            balanced.extend(_sort_items(bucket, filters.sort_by)[:per_sector])
+        return balanced
+
+    return items
+
+
+def get_stock_snapshot(
+    code: str,
+    period: str = "即时",
+    *,
+    force_refresh: bool = False,
+    kline_df: pd.DataFrame | None = None,
+) -> dict | None:
+    """Build a scored snapshot for a single stock code.
+
+    Discovery pages still use explicit pools. Manual watchlist/detail lookups
+    allow any regular沪深 A-share code so a user can analyze self-selected names.
+    """
     code = code.zfill(6)
-    tech_codes = get_big_tech_codes()
-    if code not in tech_codes:
+    if not (len(code) == 6 and code.isdigit()) or code.startswith(("4", "8")):
         return None
 
-    flow_df = get_fund_flow_rank(period=period, limit=1, codes=[code])
+    flow_df = get_fund_flow_rank(period=period, limit=1, codes=[code], allow_estimate=True)
     if flow_df.empty:
-        return None
-    return _score_row(flow_df.iloc[0])
+        kline_df = kline_df if kline_df is not None else _get_akshare_daily_klines(code, count=80, force_refresh=force_refresh)
+        if kline_df is None or kline_df.empty:
+            return None
+        latest = kline_df.iloc[-1]
+        prev_close = _safe_float(kline_df["close"].iloc[-2]) if len(kline_df) >= 2 else 0.0
+        close = _safe_float(latest.get("close"))
+        pct_change = (close / prev_close - 1) * 100 if prev_close else 0.0
+        try:
+            from discovery.stock_search import lookup_stock_name
+
+            name = lookup_stock_name(code)
+        except Exception:
+            name = ""
+        flow_df = pd.DataFrame([{
+            "code": code,
+            "name": name,
+            "price": close,
+            "pct_change": pct_change,
+            "amount": _safe_float(latest.get("amount")),
+            "main_net": 0.0,
+            "main_pct": 0.0,
+            "super_net": 0.0,
+            "large_net": 0.0,
+            "medium_net": 0.0,
+            "small_net": 0.0,
+            "period": period,
+            "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "source_provider": "kline_fallback",
+            "source_state": "technical_only",
+            "source_quality": 35.0,
+            "is_realtime": False,
+        }])
+    return _score_row(flow_df.iloc[0], force_refresh=force_refresh, kline_df=kline_df)
+
+
+def _technical_flow_fallback(codes: list[str], period: str, limit: int) -> pd.DataFrame:
+    rows: list[dict] = []
+    for code in codes:
+        disk_df = _prepare_cached_kline_df(read_df(kline_cache_path(code)), 80)
+        if disk_df is None or disk_df.empty:
+            continue
+        try:
+            latest = disk_df.iloc[-1]
+            close = _safe_float(latest.get("close"))
+            pct_change = _safe_float(latest.get("涨跌幅"))
+            if pct_change == 0 and len(disk_df) >= 2:
+                prev_close = _safe_float(disk_df["close"].iloc[-2])
+                pct_change = (close / prev_close - 1) * 100 if prev_close else 0.0
+            rows.append({
+                "code": code,
+                "name": "",
+                "price": close,
+                "pct_change": pct_change,
+                "amount": _safe_float(latest.get("amount")),
+                "main_net": 0.0,
+                "main_pct": 0.0,
+                "super_net": 0.0,
+                "large_net": 0.0,
+                "medium_net": 0.0,
+                "small_net": 0.0,
+                "period": period,
+                "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "source_provider": "kline_cache",
+                "source_state": "technical_only",
+                "source_quality": 35.0,
+                "is_realtime": False,
+            })
+        except BaseException:
+            continue
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    return df.sort_values(["amount", "pct_change"], ascending=False).head(limit).reset_index(drop=True)
 
 
 def discover_stocks(filters: DiscoveryFilters | None = None) -> dict:
@@ -803,16 +1375,51 @@ def discover_stocks(filters: DiscoveryFilters | None = None) -> dict:
     if cached and now - cached[0] < _CACHE_TTL:
         return cached[1]
 
-    tech_codes = get_big_tech_codes() if filters.tech_only else set()
-    base_limit = max(filters.limit, 300) if filters.tech_only else filters.limit
-    query_codes = sorted(tech_codes) if filters.tech_only else []
-    flow_df = get_fund_flow_rank(period=filters.period, limit=base_limit, codes=query_codes)
+    if filters.universe == "tech" and filters.tech_only:
+        query_codes = get_big_tech_codes()
+        scope = "big_tech"
+    elif filters.universe in DISCOVERY_SPECIAL_UNIVERSES:
+        pool_universe = "all" if filters.universe == LEADER_UNIVERSE else filters.universe
+        query_codes = get_rotation_codes(
+            pool_universe,
+            include_chinext=filters.include_chinext,
+            include_star=filters.include_star,
+        )
+        scope = filters.universe
+    elif filters.universe in {"rotation", "all", *ROTATION_UNIVERSES}:
+        query_codes = get_rotation_codes(
+            filters.universe,
+            include_chinext=filters.include_chinext,
+            include_star=filters.include_star,
+        )
+        scope = filters.universe
+    else:
+        query_codes = set()
+        scope = "all_market"
+    query_code_set = set(query_codes)
+    pool_size = len(query_code_set)
+    if filters.universe == NON_TECH_LEADER_UNIVERSE:
+        base_limit = max(filters.limit, len(query_codes), 300)
+    elif filters.universe in DISCOVERY_SPECIAL_UNIVERSES:
+        base_limit = max(filters.limit, min(len(query_codes), 500), 300)
+    else:
+        base_limit = max(filters.limit, 300) if query_codes else filters.limit
+    query_codes = sorted(query_codes)
+    flow_df = get_fund_flow_rank(
+        period=filters.period,
+        limit=base_limit,
+        codes=query_codes,
+        allow_estimate=filters.allow_estimated_flow or filters.short_term,
+    )
+    if flow_df.empty and query_codes and (filters.allow_estimated_flow or filters.short_term):
+        flow_df = _technical_flow_fallback(query_codes, filters.period, base_limit)
     if flow_df.empty:
         result = {
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "period": filters.period,
-            "scope": "big_tech" if filters.tech_only else "all_market",
-            "tech_pool_size": len(tech_codes),
+            "scope": scope,
+            "tech_pool_size": pool_size,
+            "pool_size": pool_size,
             "items": [],
             "summary": {
                 "count": 0,
@@ -825,10 +1432,10 @@ def discover_stocks(filters: DiscoveryFilters | None = None) -> dict:
         _CACHE[cache_key] = (now, result)
         return result
 
-    if filters.tech_only:
+    if filters.tech_only and filters.universe == "tech":
         flow_df = flow_df.copy()
         flow_df["code"] = flow_df["code"].astype(str).str.replace(r"\.0$", "", regex=True).str.zfill(6)
-        flow_df = flow_df[flow_df["code"].isin(tech_codes)]
+        flow_df = flow_df[flow_df["code"].isin(query_code_set)]
 
     if not filters.include_negative_flow:
         flow_df = flow_df[flow_df["main_net"] >= filters.min_main_net]
@@ -838,11 +1445,14 @@ def discover_stocks(filters: DiscoveryFilters | None = None) -> dict:
         try:
             items.append(_score_row(row))
         except BaseException as exc:
-            print(f"股票评分失败: {exc}")
+            LOGGER.debug("股票评分失败: %s", exc)
     items = [item for item in items if item["score"] >= filters.min_score]
     if filters.strict:
         items = [item for item in items if item.get("strict_pass")]
     items = _sort_items(items, filters.sort_by)
+    items = _apply_discovery_mode(items, filters)
+    if filters.universe != BALANCED_UNIVERSE:
+        items = _sort_items(items, filters.sort_by)
     unique_items = []
     seen_codes = set()
     for item in items:
@@ -860,8 +1470,9 @@ def discover_stocks(filters: DiscoveryFilters | None = None) -> dict:
     result = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "period": filters.period,
-        "scope": "big_tech" if filters.tech_only else "all_market",
-        "tech_pool_size": len(tech_codes),
+        "scope": scope,
+        "tech_pool_size": pool_size,
+        "pool_size": pool_size,
         "items": items,
         "summary": {
             "count": len(items),

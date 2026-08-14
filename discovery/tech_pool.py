@@ -3,7 +3,8 @@ from __future__ import annotations
 """大科技股票池。"""
 
 import time
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager
+import logging
 import os
 
 from config import BIG_TECH_FALLBACK_POOL, SECTOR_KEYWORDS, TECH_SECTOR_TAGS
@@ -11,6 +12,7 @@ from config import BIG_TECH_FALLBACK_POOL, SECTOR_KEYWORDS, TECH_SECTOR_TAGS
 
 _CACHE: tuple[float, set[str]] | None = None
 _CACHE_TTL = 3600
+LOGGER = logging.getLogger(__name__)
 
 
 def _is_allowed_board(code: str) -> bool:
@@ -20,9 +22,7 @@ def _is_allowed_board(code: str) -> bool:
 
 @contextmanager
 def _quiet_external_output():
-    with open(os.devnull, "w") as sink:
-        with redirect_stdout(sink), redirect_stderr(sink):
-            yield
+    yield
 
 
 def get_big_tech_codes() -> set[str]:
@@ -56,7 +56,7 @@ def get_big_tech_codes() -> set[str]:
                     except BaseException:
                         continue
         except BaseException as exc:
-            print(f"获取大科技股票池失败，使用本地兜底池: {exc}")
+            LOGGER.debug("获取大科技股票池失败，使用本地兜底池: %s", exc)
 
     codes = {code for code in codes if _is_allowed_board(code)}
     _CACHE = (now, codes)

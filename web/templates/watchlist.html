@@ -24,11 +24,24 @@
                     <option value="expired">信号失效</option>
                 </select>
                 <button id="evaluate-alerts-btn" type="button">评估提醒</button>
+                <button id="refresh-kline-btn" type="button">刷新K线</button>
                 <button id="refresh-btn" type="button">刷新</button>
                 <a class="back-link" href="/alerts">提醒</a>
                 <a class="back-link" href="/">返回首页</a>
             </div>
         </header>
+
+        <section class="section watch-search-section">
+            <div class="section-title">
+                <h3>搜索加入收藏</h3>
+                <span id="search-status">输入代码或名称</span>
+            </div>
+            <div class="watch-search-bar">
+                <input id="stock-search-input" type="search" placeholder="例如 600519、长电科技、风华高科">
+                <button id="stock-search-btn" type="button">搜索</button>
+            </div>
+            <div id="stock-search-results" class="watch-search-results"></div>
+        </section>
 
         <section class="section">
             <div class="section-title">
@@ -49,6 +62,7 @@
                             <th>当前涨跌</th>
                             <th>主力净额</th>
                             <th>建仓分</th>
+                            <th>K线</th>
                             <th>回踩区间</th>
                             <th>下一步</th>
                             <th>操作</th>
@@ -63,10 +77,72 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('refresh-btn').addEventListener('click', loadWatchlist);
+            document.getElementById('refresh-kline-btn').addEventListener('click', refreshKlines);
             document.getElementById('evaluate-alerts-btn').addEventListener('click', evaluateAlerts);
             document.getElementById('status-selector').addEventListener('change', loadWatchlist);
+            document.getElementById('stock-search-btn').addEventListener('click', searchStocks);
+            document.getElementById('stock-search-input').addEventListener('keydown', event => {
+                if (event.key === 'Enter') searchStocks();
+            });
             loadWatchlist();
         });
+
+        async function searchStocks() {
+            const input = document.getElementById('stock-search-input');
+            const status = document.getElementById('search-status');
+            const box = document.getElementById('stock-search-results');
+            const query = input.value.trim();
+            if (!query) {
+                status.textContent = '输入代码或名称';
+                box.innerHTML = '';
+                return;
+            }
+            status.textContent = '搜索中...';
+            const resp = await fetch(`/api/stock-search?q=${encodeURIComponent(query)}&limit=12`);
+            const data = await resp.json();
+            const items = data.items || [];
+            status.textContent = `${items.length} 个结果`;
+            if (!items.length) {
+                box.innerHTML = '<div class="empty-panel compact-empty">未找到股票</div>';
+                return;
+            }
+            box.innerHTML = items.map(item => `
+                <div class="watch-search-item">
+                    <div>
+                        <strong>${item.code} ${item.name || '-'}</strong>
+                        <span>${formatSource(item.source)}</span>
+                    </div>
+                    <div class="watch-search-actions">
+                        <button type="button" class="secondary-inline-btn" onclick="addSearchResult('${item.code}')">加入收藏</button>
+                        <a class="table-link" href="/stock/${item.code}">详情分析</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function addSearchResult(code) {
+            const status = document.getElementById('search-status');
+            status.textContent = `${code} 加入中...`;
+            const resp = await fetch('/api/watchlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, source: 'favorite' }),
+            });
+            if (resp.ok) {
+                status.textContent = `${code} 已加入收藏`;
+                loadWatchlist();
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                status.textContent = `${code} 加入失败: ${data.error || '无法获取行情'}`;
+            }
+        }
+
+        function formatSource(source) {
+            if (source === 'akshare') return 'A股代码表';
+            if (source === 'local') return '本地记录';
+            if (source === 'cache') return '本地行情缓存';
+            return '本地股票池';
+        }
 
         async function loadWatchlist() {
             const status = encodeURIComponent(document.getElementById('status-selector').value);
@@ -91,10 +167,23 @@
             }
         }
 
+        async function refreshKlines() {
+            const btn = document.getElementById('refresh-kline-btn');
+            const count = document.getElementById('watch-count');
+            btn.disabled = true;
+            count.textContent = 'K线刷新中...';
+            try {
+                await fetch('/api/watchlist/kline-refresh', { method: 'POST' });
+                loadWatchlist();
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         function renderTable(items) {
             const body = document.getElementById('watch-body');
             if (!items.length) {
-                body.innerHTML = '<tr><td colspan="13" class="empty">暂无观察股票</td></tr>';
+                body.innerHTML = '<tr><td colspan="14" class="empty">暂无观察股票</td></tr>';
                 return;
             }
             body.innerHTML = items.map(item => `
@@ -109,6 +198,7 @@
                     <td class="${Number(item.latest_pct_change || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.latest_pct_change)}</td>
                     <td class="${Number(item.latest_main_net || 0) >= 0 ? 'profit' : 'loss'}">${formatAmount(item.latest_main_net)}</td>
                     <td>${fmtScore(item.initial_tomorrow_score)} → ${fmtScore(item.latest_tomorrow_score)}</td>
+                    <td>${formatKlineStatus(item.kline_status)}</td>
                     <td>${item.entry_pullback_zone || '-'}</td>
                     <td>${item.entry_next_action || '-'}</td>
                     <td>
@@ -132,6 +222,13 @@
         function fmtScore(value) {
             const val = Number(value || 0);
             return val ? val.toFixed(1) : '-';
+        }
+
+        function formatKlineStatus(status) {
+            if (!status) return '-';
+            const cls = status.status === 'current' ? 'strict-ok' : 'strict-bad';
+            const text = status.last_date ? `${status.label} ${status.last_date}` : status.label;
+            return `<span class="${cls}">${text}</span>`;
         }
 
         function formatAmount(value) {

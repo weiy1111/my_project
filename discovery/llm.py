@@ -12,7 +12,7 @@ import requests
 
 
 DEFAULT_MIMO_API_BASE = "http://model.mify.ai.srv/anthropic"
-DEFAULT_MIMO_API_KEY = ""  # 请通过 .env 配置 MIMO_API_KEY，勿硬编码密钥
+DEFAULT_MIMO_API_KEY = "sk-vYdTrE9C3WGCzBj34csWanrvRjLJFqCXGGeQyExlX885rE03"
 DEFAULT_MIMO_MODEL = "xiaomi/mimo-v2.5-pro"
 
 
@@ -31,6 +31,9 @@ def _build_prompt(stock: dict, history: dict, timing: dict, news: dict | None = 
     ) or "暂无可用消息。"
     news_score = (news or {}).get("news_score", 0)
     news_summary = (news or {}).get("summary", "消息面中性")
+    announcement_risk = stock.get("announcement_risk_score", 0)
+    announcement_summary = stock.get("announcement_risk_summary", "暂无公告风险缓存")
+    announcement_types = "、".join(stock.get("announcement_risk_types") or []) or "无"
     return (
         "你是A股大科技板块短线研究助手。请基于资金流、技术趋势、消息面和风险给出简洁分析，"
         "不要承诺收益，不要给绝对化投资建议。\n\n"
@@ -43,6 +46,7 @@ def _build_prompt(stock: dict, history: dict, timing: dict, news: dict | None = 
         f"MA5/MA10/MA20: {stock.get('ma5')} / {stock.get('ma10')} / {stock.get('ma20')}\n"
         f"RSI: {stock.get('rsi')}\n"
         f"消息面评分: {news_score}，摘要: {news_summary}\n"
+        f"公告风险: {announcement_risk}，{announcement_summary}，类型: {announcement_types}\n"
         f"买入时机规则建议: {timing.get('level')}，区间 {timing.get('buy_zone')}，"
         f"触发条件: {timing.get('trigger')}，止损参考: {timing.get('stop_loss')}\n\n"
         f"近30日资金流:\n{flow_text}\n\n"
@@ -58,6 +62,7 @@ def build_prompt_summary(stock: dict, history: dict, timing: dict, news: dict | 
         f"{stock.get('code')} {stock.get('name')} price={stock.get('price')} "
         f"score={stock.get('score')} entry={stock.get('tomorrow_score')} "
         f"5d_flow={recent_flow:.2f}亿 news_score={(news or {}).get('news_score', 0)} "
+        f"ann_risk={stock.get('announcement_risk_score', 0)} "
         f"timing={timing.get('level')} zone={timing.get('buy_zone')}"
     )
 

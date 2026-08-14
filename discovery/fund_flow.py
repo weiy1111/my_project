@@ -6,7 +6,8 @@ from __future__ import annotations
 """
 
 from datetime import datetime
-from contextlib import contextmanager, redirect_stderr, redirect_stdout
+from contextlib import contextmanager
+import logging
 import os
 import time
 
@@ -14,18 +15,24 @@ import pandas as pd
 import requests
 
 from discovery.cache_store import flow_cache_path, is_fresh, read_df, write_df
+from discovery.data_quality import attach_df_source
 
 
 _CACHE: dict[str, tuple[float, pd.DataFrame]] = {}
 _CACHE_TTL = 60
 _DISK_CACHE_TTL = 60
+LOGGER = logging.getLogger(__name__)
+
+_FUND_FLOW_COLUMNS = [
+    "code", "name", "price", "pct_change", "amount", "main_net", "main_pct",
+    "super_net", "large_net", "medium_net", "small_net", "period", "updated_at",
+    "source_provider", "source_state", "source_quality", "is_realtime",
+]
 
 
 @contextmanager
 def _quiet_external_output():
-    with open(os.devnull, "w") as sink:
-        with redirect_stdout(sink), redirect_stderr(sink):
-            yield
+    yield
 
 
 def _to_float(value, default: float = 0.0) -> float:
@@ -45,6 +52,16 @@ def _to_float(value, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _to_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y"}
+    return bool(value)
 
 
 def _code_to_secid(code: str) -> str:
@@ -97,7 +114,7 @@ def _fetch_eastmoney_fund_flow(codes: list[str], period: str) -> pd.DataFrame:
             resp.raise_for_status()
             data = resp.json().get("data", {}).get("diff", [])
         except BaseException as exc:
-            print(f"获取东方财富资金流失败: {exc}")
+            LOGGER.debug("获取东方财富资金流失败: %s", exc)
             continue
 
         for item in data:
@@ -122,15 +139,26 @@ def _fetch_eastmoney_fund_flow(codes: list[str], period: str) -> pd.DataFrame:
                 "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             })
 
-    return pd.DataFrame(rows)
+    return attach_df_source(pd.DataFrame(rows), "eastmoney_fund_flow", "realtime")
 
 
 def _estimate_current_flow(codes: list[str], period: str) -> pd.DataFrame:
     rows = []
     try:
-        from data.realtime import get_realtime_quotes
+        if len(codes) > 30:
+            from data.realtime import _fetch_eastmoney_realtime, _fetch_sina_realtime, _fetch_tencent_realtime
 
-        quotes = get_realtime_quotes(codes)
+            quotes = _fetch_sina_realtime(codes)
+            missing = [code for code in codes if code not in quotes]
+            if missing:
+                quotes.update(_fetch_tencent_realtime(missing))
+                missing = [code for code in codes if code not in quotes]
+            if missing:
+                quotes.update(_fetch_eastmoney_realtime(missing))
+        else:
+            from data.realtime import get_realtime_quotes
+
+            quotes = get_realtime_quotes(codes)
     except Exception:
         quotes = {}
 
@@ -159,7 +187,7 @@ def _estimate_current_flow(codes: list[str], period: str) -> pd.DataFrame:
             "period": period,
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         })
-    return pd.DataFrame(rows)
+    return attach_df_source(pd.DataFrame(rows), "realtime_estimate", "estimated")
 
 
 def _normalize_fund_flow(df: pd.DataFrame, period: str) -> pd.DataFrame:
@@ -189,11 +217,15 @@ def _normalize_fund_flow(df: pd.DataFrame, period: str) -> pd.DataFrame:
             "small_net": _to_float(row.get("small_net", 0)),
             "period": period,
             "updated_at": row.get("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            "source_provider": row.get("source_provider") or row.get("source") or "",
+            "source_state": row.get("source_state") or "",
+            "source_quality": _to_float(row.get("source_quality", 50.0), 50.0),
+            "is_realtime": _to_bool(row.get("is_realtime", False)),
         })
 
     result = pd.DataFrame(rows)
     if result.empty:
-        return result
+        return pd.DataFrame(columns=_FUND_FLOW_COLUMNS)
     return result.sort_values(["main_net", "main_pct"], ascending=False).reset_index(drop=True)
 
 
@@ -205,7 +237,13 @@ def _normalize_cached_codes(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_fund_flow_rank(period: str = "即时", limit: int = 100, codes: list[str] | None = None) -> pd.DataFrame:
+def get_fund_flow_rank(
+    period: str = "即时",
+    limit: int = 100,
+    codes: list[str] | None = None,
+    *,
+    allow_estimate: bool = False,
+) -> pd.DataFrame:
     """获取个股资金流排行。
 
     Args:
@@ -221,8 +259,10 @@ def get_fund_flow_rank(period: str = "即时", limit: int = 100, codes: list[str
     def _read_disk(limit_rows: int) -> pd.DataFrame:
         disk_df = read_df(disk_path)
         if disk_df is None:
-            return pd.DataFrame()
-        return _normalize_cached_codes(disk_df).head(limit_rows)
+            return pd.DataFrame(columns=_FUND_FLOW_COLUMNS)
+        disk_df = _normalize_cached_codes(disk_df)
+        disk_df = attach_df_source(disk_df, "fund_flow_cache", "cached")
+        return disk_df.head(limit_rows)
 
     cached = _CACHE.get(cache_key)
     if cached and now - cached[0] < _CACHE_TTL:
@@ -244,7 +284,7 @@ def get_fund_flow_rank(period: str = "即时", limit: int = 100, codes: list[str
             # only use it for single-stock/detail lookups. Bulk scans should
             # fall back to the latest local cache instead of blocking.
             cached_result = _read_disk(limit)
-            if df.empty and len(codes) <= 10 and cached_result.empty:
+            if df.empty and (allow_estimate or len(codes) <= 10) and cached_result.empty:
                 df = _estimate_current_flow(codes, period)
             result = _normalize_fund_flow(df, period).head(limit)
             if not result.empty:
@@ -252,8 +292,10 @@ def get_fund_flow_rank(period: str = "即时", limit: int = 100, codes: list[str
             else:
                 result = cached_result
     except BaseException as exc:
-        print(f"获取资金流失败: {exc}")
+        LOGGER.debug("获取资金流失败: %s", exc)
         result = _read_disk(limit)
 
+    if result is None or result.empty:
+        result = pd.DataFrame(columns=_FUND_FLOW_COLUMNS)
     _CACHE[cache_key] = (now, result)
     return result.copy()

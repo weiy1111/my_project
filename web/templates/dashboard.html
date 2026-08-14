@@ -12,9 +12,30 @@
         <header>
             <div>
                 <h1>大a数据分析</h1>
-                <p>大科技板块资金流向 + 趋势强度 + AI 辅助研判，已排除科创板</p>
+                <p>多板块资金流向 + 趋势强度 + 短线轮动龙头 + AI 辅助研判</p>
             </div>
             <div class="header-right">
+                <select id="universe-selector">
+                    <option value="tech">大科技</option>
+                    <option value="mainline">主线发现</option>
+                    <option value="leader">龙头模式</option>
+                    <option value="non_tech_leader">非科技龙头</option>
+                    <option value="balanced">板块均衡</option>
+                    <option value="rotation">短线轮动</option>
+                    <option value="power">电力</option>
+                    <option value="innovative_drug">创新药</option>
+                    <option value="consumer">消费</option>
+                    <option value="coal_oil_gas">煤炭油气</option>
+                    <option value="nonferrous">有色黄金</option>
+                    <option value="bank">银行</option>
+                    <option value="broker_insurance">证券保险</option>
+                    <option value="real_estate_chain">地产链</option>
+                    <option value="infrastructure">基建中字头</option>
+                    <option value="military">军工</option>
+                    <option value="chemical">化工材料</option>
+                    <option value="agriculture">农业养殖</option>
+                    <option value="all">全部观察池</option>
+                </select>
                 <select id="period-selector">
                     <option value="即时">即时</option>
                     <option value="3日排行">3日排行</option>
@@ -39,6 +60,8 @@
                 </select>
                 <select id="sort-selector">
                     <option value="score">综合评分</option>
+                    <option value="leader">情绪龙头</option>
+                    <option value="short_term">短线轮动</option>
                     <option value="tomorrow">明日建仓</option>
                     <option value="flow_persistence">资金持续</option>
                     <option value="pullback">回踩机会</option>
@@ -50,6 +73,7 @@
                 <button id="refresh-btn" type="button">刷新</button>
                 <button id="save-recommendations-btn" type="button">保存今日推荐</button>
                 <button id="watchlist-btn" type="button">加入观察池</button>
+                <a class="back-link" href="/rotation">短线轮动</a>
                 <a class="back-link" href="/sectors">板块热度</a>
                 <a class="back-link" href="/watchlist">观察池</a>
                 <a class="back-link" href="/alerts">提醒</a>
@@ -60,9 +84,17 @@
             </div>
         </header>
 
+        <section class="section market-index-section">
+            <div class="section-title">
+                <h3>核心指数</h3>
+                <span id="market-index-status">加载中...</span>
+            </div>
+            <div id="market-index-grid" class="market-index-grid"></div>
+        </section>
+
         <div class="cards">
             <div class="card">
-                <div class="card-label">科技候选股票</div>
+                <div class="card-label" id="candidate-card-label">候选股票</div>
                 <div class="card-value" id="candidate-count">--</div>
             </div>
             <div class="card">
@@ -82,7 +114,7 @@
                 <div class="card-value card-value-sm" id="best-entry-stock">--</div>
             </div>
             <div class="card">
-                <div class="card-label">科技股票池</div>
+                <div class="card-label" id="pool-card-label">股票池</div>
                 <div class="card-value" id="tech-pool-size">--</div>
             </div>
             <div class="card">
@@ -124,6 +156,7 @@
                                 <th>主力净额</th>
                                 <th>净占比</th>
                                 <th>资金结构</th>
+                                <th>龙头</th>
                                 <th>评分</th>
                                 <th>建仓分</th>
                                 <th>严选</th>
@@ -162,6 +195,7 @@
             document.getElementById('refresh-btn').addEventListener('click', refreshAll);
             document.getElementById('save-recommendations-btn').addEventListener('click', saveRecommendations);
             document.getElementById('watchlist-btn').addEventListener('click', addSelectedToWatchlist);
+            document.getElementById('universe-selector').addEventListener('change', onUniverseChange);
             document.getElementById('period-selector').addEventListener('change', refreshAll);
             document.getElementById('score-selector').addEventListener('change', refreshAll);
             document.getElementById('flow-selector').addEventListener('change', refreshAll);
@@ -169,17 +203,51 @@
             document.getElementById('sort-selector').addEventListener('change', refreshAll);
             document.getElementById('strict-selector').addEventListener('change', refreshAll);
             refreshAll();
+            loadMarketIndices();
             setInterval(refreshAll, 60000);
+            setInterval(loadMarketIndices, 30000);
         });
 
+        async function loadMarketIndices() {
+            const box = document.getElementById('market-index-grid');
+            const status = document.getElementById('market-index-status');
+            try {
+                const resp = await fetch('/api/market/indices');
+                const data = await resp.json();
+                const items = data.items || [];
+                status.textContent = data.error ? `指数获取失败：${data.error}` : `${data.source || '行情源'} ${data.updated_at || ''}`;
+                if (!items.length) {
+                    box.innerHTML = '<div class="empty-panel compact-empty">暂无指数实时行情</div>';
+                    return;
+                }
+                box.innerHTML = items.map(item => {
+                    const up = Number(item.pct_change || 0) >= 0;
+                    return `<div class="market-index-card">
+                        <div class="market-index-name">${item.name || item.code}</div>
+                        <div class="market-index-price ${up ? 'profit' : 'loss'}">${Number(item.price || 0).toFixed(2)}</div>
+                        <div class="market-index-meta">
+                            <span class="${up ? 'profit' : 'loss'}">${formatPct(item.pct_change)}</span>
+                            <span>${formatAmount(item.amount)}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (err) {
+                status.textContent = `指数获取失败：${err}`;
+                box.innerHTML = '<div class="empty-panel compact-empty">指数接口暂不可用</div>';
+            }
+        }
+
         async function refreshAll() {
+            const universe = encodeURIComponent(document.getElementById('universe-selector').value);
             const period = encodeURIComponent(document.getElementById('period-selector').value);
             const minScore = document.getElementById('score-selector').value;
             const includeNegative = document.getElementById('flow-selector').value;
             const limit = document.getElementById('limit-selector').value;
             const sortBy = encodeURIComponent(document.getElementById('sort-selector').value);
             const strict = document.getElementById('strict-selector').value;
-            const resp = await fetch(`/api/discovery?period=${period}&limit=${limit}&min_score=${minScore}&include_negative=${includeNegative}&sort_by=${sortBy}&strict=${strict}`);
+            const sortValue = document.getElementById('sort-selector').value;
+            const shortTerm = ['short_term', 'leader'].includes(sortValue) ? '1' : '0';
+            const resp = await fetch(`/api/discovery?universe=${universe}&period=${period}&limit=${limit}&min_score=${minScore}&include_negative=${includeNegative}&sort_by=${sortBy}&strict=${strict}&short_term=${shortTerm}`);
             const data = await resp.json();
             stocks = data.items || [];
             selectedCode = selectedCode && stocks.some(s => s.code === selectedCode)
@@ -190,6 +258,20 @@
             renderFlowChart();
             renderScoreChart();
             renderDetail();
+        }
+
+        function onUniverseChange() {
+            const universe = document.getElementById('universe-selector').value;
+            const sort = document.getElementById('sort-selector');
+            if (['leader', 'mainline', 'non_tech_leader', 'balanced'].includes(universe)) {
+                sort.value = 'leader';
+                document.getElementById('flow-selector').value = '1';
+                document.getElementById('score-selector').value = '0';
+            }
+            if (universe !== 'tech' && sort.value === 'score') {
+                sort.value = 'short_term';
+            }
+            refreshAll();
         }
 
         async function addSelectedToWatchlist() {
@@ -216,6 +298,8 @@
             const status = document.getElementById('save-status');
             const period = document.getElementById('period-selector').value;
             const sortBy = document.getElementById('sort-selector').value;
+            const universe = document.getElementById('universe-selector').value;
+            const shortTerm = ['short_term', 'leader'].includes(sortBy);
             const limit = Number(document.getElementById('limit-selector').value || 80);
             const strict = document.getElementById('strict-selector').value === '1';
             btn.disabled = true;
@@ -224,7 +308,7 @@
                 const resp = await fetch('/api/recommendations/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ period, sort_by: sortBy, limit: Math.min(limit, 100), strict }),
+                    body: JSON.stringify({ period, sort_by: sortBy, universe, short_term: shortTerm, limit: Math.min(limit, 100), strict }),
                 });
                 const data = await resp.json();
                 status.textContent = `已保存 ${data.saved || 0} 只`;
@@ -237,9 +321,12 @@
 
         function renderOverview(data) {
             const summary = data.summary || {};
+            const universeText = document.getElementById('universe-selector').selectedOptions[0].textContent;
+            document.getElementById('candidate-card-label').textContent = `${universeText}候选`;
+            document.getElementById('pool-card-label').textContent = `${universeText}股票池`;
             document.getElementById('candidate-count').textContent = summary.count || 0;
             document.getElementById('positive-count').textContent = summary.positive_flow_count || 0;
-            document.getElementById('tech-pool-size').textContent = data.tech_pool_size || 0;
+            document.getElementById('tech-pool-size').textContent = data.pool_size || data.tech_pool_size || 0;
             document.getElementById('total-main-net').textContent = formatAmount(summary.total_main_net || 0);
             document.getElementById('avg-score').textContent = (summary.avg_score || 0).toFixed(1);
             document.getElementById('best-stock').textContent = summary.best
@@ -252,13 +339,13 @@
             const sortText = document.getElementById('sort-selector').selectedOptions[0].textContent;
             const strictText = document.getElementById('strict-selector').selectedOptions[0].textContent;
             const flowText = document.getElementById('flow-selector').selectedOptions[0].textContent;
-            document.getElementById('list-subtitle').textContent = `大科技板块，${data.period || '即时'}，${flowText}，${strictText}，按${sortText}排序`;
+            document.getElementById('list-subtitle').textContent = `${universeText}，${data.period || '即时'}，${flowText}，${strictText}，按${sortText}排序`;
         }
 
         function renderTable() {
             const tbody = document.getElementById('stocks-body');
             if (!stocks.length) {
-                tbody.innerHTML = '<tr><td colspan="13" class="empty">暂无候选股票</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="14" class="empty">暂无候选股票</td></tr>';
                 return;
             }
 
@@ -278,8 +365,9 @@
                     <td class="${s.main_net >= 0 ? 'profit' : 'loss'}">${formatAmount(s.main_net)}</td>
                     <td class="${s.main_pct >= 0 ? 'profit' : 'loss'}">${formatPct(s.main_pct)}</td>
                     <td><span class="${moneyClass(s.money_structure_score)}">${s.money_structure_label || '-'}</span></td>
+                    <td><span class="score-pill leader-score" title="${s.leader_reason || ''}">${Number(s.leader_score || 0).toFixed(1)}</span><br><small>${s.leader_label || '-'}</small></td>
                     <td><span class="score-pill">${s.score.toFixed(1)}</span></td>
-                    <td><span class="score-pill entry-score">${Number(s.tomorrow_score || 0).toFixed(1)}</span></td>
+                    <td><span class="score-pill entry-score">${Number(s.short_term_score || s.tomorrow_score || 0).toFixed(1)}</span></td>
                     <td>${strictBadge}</td>
                     <td>${s.entry_status || '-'}</td>
                     <td>${s.tomorrow_action || (s.ai ? s.ai.action : '-')}</td>
@@ -343,6 +431,8 @@
                         { name: '量能', max: 100 },
                         { name: '低风险', max: 100 },
                         { name: '建仓', max: 100 },
+                        { name: '短线', max: 100 },
+                        { name: '龙头', max: 100 },
                     ],
                     radius: '66%',
                 },
@@ -356,6 +446,8 @@
                             stock.volume_score,
                             Math.max(0, 100 - stock.risk_score),
                             stock.tomorrow_score,
+                            stock.short_term_score || 0,
+                            stock.leader_score || 0,
                         ],
                         name: `${stock.code} ${stock.name}`,
                         areaStyle: { color: 'rgba(45, 105, 190, 0.18)' },
@@ -387,13 +479,19 @@
                     <div><span>3日资金</span><strong>${formatAmount(stock.main_net_3d)}</strong></div>
                     <div><span>30日资金</span><strong>${formatAmount(stock.main_net_30d)}</strong></div>
                     <div><span>建仓分</span><strong>${Number(stock.tomorrow_score || 0).toFixed(1)}</strong></div>
+                    <div><span>短线分</span><strong>${Number(stock.short_term_score || 0).toFixed(1)}</strong></div>
+                    <div><span>龙头分</span><strong>${Number(stock.leader_score || 0).toFixed(1)}</strong></div>
+                    <div><span>龙头状态</span><strong>${stock.leader_label || '-'}</strong></div>
                     <div><span>消息分</span><strong>${Number(stock.news_score || 0).toFixed(1)}</strong></div>
                     <div><span>RSI</span><strong>${stock.rsi ? stock.rsi.toFixed(1) : '-'}</strong></div>
                 </div>
                 <h4>明日建仓</h4>
                 <ul>
                     <li>${stock.tomorrow_action || '-'}</li>
+                    <li>龙头模式：${stock.leader_action || '-'}，${stock.leader_reason || '-'}</li>
+                    <li>龙头风险：${stock.leader_risk || '-'}</li>
                     <li>资金结构：${stock.money_structure_label || '-'}，${stock.money_structure_suggestion || '-'}</li>
+                    <li>短线轮动分：${Number(stock.short_term_score || 0).toFixed(1)}，只适合2-5个交易日观察</li>
                     <li>触发状态：${stock.entry_status || '-'}（${stock.entry_passed_count || 0}/${stock.entry_total_count || 0}）</li>
                     <li>严选状态：${stock.strict_pass ? '通过' : '剔除'}</li>
                     ${stock.reject_reasons?.length ? `<li>剔除原因：${stock.reject_reasons.join('；')}</li>` : ''}

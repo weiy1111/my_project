@@ -18,6 +18,7 @@ FLOW_DIR = CACHE_DIR / "flow"
 KLINE_DIR = CACHE_DIR / "kline"
 HISTORY_DIR = CACHE_DIR / "history"
 NEWS_DIR = CACHE_DIR / "news"
+ANNOUNCEMENT_DIR = CACHE_DIR / "announcements"
 
 
 def _ensure_dir(path: Path) -> None:
@@ -83,3 +84,7 @@ def history_cache_path(code: str) -> Path:
 
 def news_cache_path(code: str) -> Path:
     return NEWS_DIR / f"{code}.json"
+
+
+def announcement_cache_path(code: str) -> Path:
+    return ANNOUNCEMENT_DIR / f"{code}.json"

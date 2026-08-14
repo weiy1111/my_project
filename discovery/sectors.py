@@ -7,7 +7,8 @@ from typing import Any
 
 from config import TECH_SECTOR_TAGS
 from discovery.db import db_session, initialize_database, json_dumps, upsert
-from discovery.scorer import DiscoveryFilters, discover_stocks
+from discovery.rotation_pool import ROTATION_SECTOR_TAGS
+from discovery.scorer import DISCOVERY_SPECIAL_UNIVERSES, DiscoveryFilters, LEADER_UNIVERSE, discover_stocks
 
 
 def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
@@ -112,8 +113,21 @@ def _build_sector_prediction(bucket: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def get_code_sectors(code: str) -> list[dict[str, str]]:
+def get_code_sectors(code: str, universe: str = "tech") -> list[dict[str, str]]:
     code = str(code).zfill(6)
+    if universe in {"rotation", "all", *DISCOVERY_SPECIAL_UNIVERSES, *ROTATION_SECTOR_TAGS.keys()}:
+        sectors = []
+        selected = ROTATION_SECTOR_TAGS
+        if universe in ROTATION_SECTOR_TAGS:
+            selected = {universe: ROTATION_SECTOR_TAGS[universe]}
+        for key, info in selected.items():
+            if code in set(str(item).zfill(6) for item in info.get("codes", [])):
+                sectors.append({"key": key, "name": info["name"]})
+        if sectors:
+            return sectors
+        if universe not in {"all", *DISCOVERY_SPECIAL_UNIVERSES}:
+            return [{"key": "other_rotation", "name": "其他轮动"}]
+
     sectors = []
     for key, info in TECH_SECTOR_TAGS.items():
         if code in set(info.get("codes", [])):
@@ -121,17 +135,22 @@ def get_code_sectors(code: str) -> list[dict[str, str]]:
     return sectors or [{"key": "other_tech", "name": "其他科技"}]
 
 
-def build_sector_heat(sort_by: str = "score", limit: int = 200) -> dict[str, Any]:
+def build_sector_heat(sort_by: str = "score", limit: int = 200, universe: str = "tech") -> dict[str, Any]:
+    short_term = sort_by in {"short", "short_term", "leader"} or universe in DISCOVERY_SPECIAL_UNIVERSES
     result = discover_stocks(DiscoveryFilters(
         period="即时",
         limit=limit,
         include_negative_flow=True,
         sort_by=sort_by,
+        tech_only=universe == "tech",
+        universe=universe,
+        short_term=short_term,
+        allow_estimated_flow=short_term,
     ))
     stocks = result.get("items") or []
     buckets: dict[str, dict[str, Any]] = {}
     for stock in stocks:
-        for sector in get_code_sectors(stock["code"]):
+        for sector in get_code_sectors(stock["code"], universe=universe):
             bucket = buckets.setdefault(sector["key"], {
                 "key": sector["key"],
                 "name": sector["name"],
@@ -185,6 +204,7 @@ def build_sector_heat(sort_by: str = "score", limit: int = 200) -> dict[str, Any
     sectors.sort(key=lambda item: item["heat_score"], reverse=True)
     return {
         "updated_at": result.get("updated_at") or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "scope": universe,
         "items": sectors,
     }
 

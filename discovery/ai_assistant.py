@@ -25,6 +25,8 @@ def build_stock_brief(stock: dict) -> dict:
     tomorrow_score = float(stock.get("tomorrow_score", 0) or 0)
     news_score = float(stock.get("news_score", 0) or 0)
     news_summary = stock.get("news_summary", "")
+    announcement_risk = float(stock.get("announcement_risk_score", 0) or 0)
+    announcement_summary = stock.get("announcement_risk_summary", "")
 
     strengths = []
     risks = []
@@ -55,6 +57,13 @@ def build_stock_brief(stock: dict) -> dict:
         strengths.append(f"{news_summary or '消息面偏积极'}，对短线情绪有支撑")
     elif news_score <= -12:
         risks.append(f"{news_summary or '消息面偏谨慎'}，需要降低追高预期")
+
+    if announcement_risk >= 70:
+        risks.append(f"{announcement_summary or '公告风险较高'}，严选应回避")
+    elif announcement_risk >= 40:
+        risks.append(f"{announcement_summary or '公告存在风险项'}，需要降低仓位")
+    elif announcement_risk > 0:
+        risks.append("公告有轻微风险提示，需确认是否已被市场消化")
 
     if pct_change > 7:
         risks.append("当日涨幅过大，短线回撤风险上升")

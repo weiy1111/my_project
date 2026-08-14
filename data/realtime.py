@@ -3,15 +3,18 @@ from __future__ import annotations
 
 优先级：
   1. 新浪财经 API（快，不限速）
-  2. 东方财富 API（备选）
-  3. AKShare 日K线
-  4. baostock 日K线（兜底）
+  2. 腾讯实时行情 API（批量、稳定）
+  3. 东方财富 API（备选）
+  4. AKShare 日K线
+  5. baostock 日K线（兜底）
 """
 import requests
 import re
 import pandas as pd
 import time
 from datetime import datetime, timedelta
+
+from discovery.data_quality import attach_source
 
 # 行情缓存
 _quotes_cache: dict[str, dict] = {}
@@ -26,6 +29,13 @@ _KLINES_CACHE_TTL = 60
 
 def _code_to_sina(code: str) -> str:
     """股票代码转新浪格式：sh/sz + 代码"""
+    if code.startswith(('5', '6')):
+        return f'sh{code}'
+    return f'sz{code}'
+
+
+def _code_to_tencent(code: str) -> str:
+    """股票代码转腾讯格式：sh/sz + 代码"""
     if code.startswith(('5', '6')):
         return f'sh{code}'
     return f'sz{code}'
@@ -75,8 +85,66 @@ def _fetch_sina_realtime(codes: list[str]) -> dict[str, dict]:
                 "pct_change": round(pct, 2),
                 "timestamp": datetime.now(),
             }
+            result[code] = attach_source(result[code], "sina", "realtime")
         except (ValueError, IndexError):
             continue
+    return result
+
+
+def _fetch_tencent_realtime(codes: list[str]) -> dict[str, dict]:
+    """腾讯实时行情 API（批量）。
+
+    qt.gtimg.cn 返回字段用 ~ 分隔，常用字段：
+    1 名称、3 最新价、4 昨收、5 今开、30 时间、32 涨跌幅、
+    33 最高、34 最低、36 成交量、37 成交额(万元)。
+    """
+    if not codes:
+        return {}
+    result: dict[str, dict] = {}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        'Referer': 'https://gu.qq.com/',
+    }
+    for start in range(0, len(codes), 80):
+        batch = codes[start:start + 80]
+        symbols = ','.join(_code_to_tencent(c) for c in batch)
+        url = f'https://qt.gtimg.cn/q={symbols}'
+        try:
+            resp = requests.get(url, headers=headers, timeout=8)
+            resp.raise_for_status()
+            resp.encoding = 'gbk'
+        except Exception:
+            continue
+
+        pattern = re.compile(r'v_(s[hz]\d+)="([^"]*)"')
+        for match in pattern.finditer(resp.text):
+            symbol = match.group(1)
+            code = symbol[2:]
+            parts = match.group(2).split('~')
+            if len(parts) < 38:
+                continue
+            try:
+                price = float(parts[3] or 0)
+                if price <= 0:
+                    continue
+                timestamp = datetime.now()
+                if len(parts[30]) >= 14:
+                    timestamp = datetime.strptime(parts[30][:14], '%Y%m%d%H%M%S')
+                result[code] = {
+                    "name": parts[1],
+                    "price": price,
+                    "open": float(parts[5] or 0),
+                    "high": float(parts[33] or 0),
+                    "low": float(parts[34] or 0),
+                    "pre_close": float(parts[4] or 0),
+                    "volume": int(float(parts[36] or 0)),
+                    "amount": float(parts[37] or 0) * 10000,
+                    "pct_change": round(float(parts[32] or 0), 2),
+                    "timestamp": timestamp,
+                }
+                result[code] = attach_source(result[code], "tencent", "realtime")
+            except (ValueError, IndexError):
+                continue
     return result
 
 
@@ -139,6 +207,7 @@ def _fetch_eastmoney_realtime(codes: list[str]) -> dict[str, dict]:
                 "pct_change": float(item.get('f3', 0) or 0) / 100,
                 "timestamp": datetime.now(),
             }
+            result[code] = attach_source(result[code], "eastmoney", "realtime")
         return result
     except Exception:
         return {}
@@ -170,7 +239,7 @@ def _fetch_eastmoney_single(code: str) -> dict | None:
         price = float(price_raw) / 100
         if price <= 0:
             return None
-        return {
+        return attach_source({
             "name": str(data.get('f58', '')),
             "price": price,
             "open": float(data.get('f46', 0) or 0) / 100,
@@ -181,7 +250,7 @@ def _fetch_eastmoney_single(code: str) -> dict | None:
             "amount": float(data.get('f48', 0) or 0),
             "pct_change": float(data.get('f170', 0) or 0) / 100,
             "timestamp": datetime.now(),
-        }
+        }, "eastmoney", "realtime")
     except Exception:
         return None
 
@@ -203,13 +272,13 @@ def _fetch_akshare_kline(code: str) -> dict | None:
         price = float(latest["收盘"])
         pre_close = float(prev["收盘"])
         pct = ((price - pre_close) / pre_close * 100) if pre_close > 0 else 0
-        return {
+        return attach_source({
             "name": "", "price": price,
             "open": float(latest["开盘"]), "high": float(latest["最高"]),
             "low": float(latest["最低"]), "pre_close": pre_close,
             "volume": int(latest["成交量"]), "amount": float(latest["成交额"]),
             "pct_change": pct, "timestamp": datetime.now(),
-        }
+        }, "akshare", "historical")
     except Exception:
         return None
 
@@ -254,13 +323,13 @@ def _fetch_baostock_kline(code: str) -> dict | None:
         pre_close = float(prev['close'])
         pct = ((price - pre_close) / pre_close * 100) if pre_close > 0 else 0
 
-        return {
+        return attach_source({
             "name": "", "price": price,
             "open": float(latest['open']), "high": float(latest['high']),
             "low": float(latest['low']), "pre_close": pre_close,
             "volume": int(latest['volume']), "amount": float(latest['amount']),
             "pct_change": pct, "timestamp": datetime.now(),
-        }
+        }, "baostock", "historical")
     except Exception:
         return None
 
@@ -268,7 +337,7 @@ def _fetch_baostock_kline(code: str) -> dict | None:
 def get_realtime_quotes(codes: list[str]) -> dict[str, dict]:
     """获取多只股票实时快照
 
-    优先级：东方财富实时API → AKShare日K → baostock日K
+    优先级：新浪实时API → 腾讯实时API → 东方财富实时API → AKShare日K → baostock日K
     """
     global _quotes_cache, _quotes_cache_time
     now = time.time()
@@ -289,14 +358,21 @@ def get_realtime_quotes(codes: list[str]) -> dict[str, dict]:
             _quotes_cache.update(sina_result)
             missing = [c for c in missing if c not in sina_result]
 
-        # 方式2：东方财富批量API
+        # 方式2：腾讯批量API
+        if missing:
+            tencent_result = _fetch_tencent_realtime(missing)
+            if tencent_result:
+                _quotes_cache.update(tencent_result)
+                missing = [c for c in missing if c not in tencent_result]
+
+        # 方式3：东方财富批量API
         if missing:
             em_result = _fetch_eastmoney_realtime(missing)
             if em_result:
                 _quotes_cache.update(em_result)
                 missing = [c for c in missing if c not in em_result]
 
-        # 方式3：逐个获取（AKShare → baostock）
+        # 方式4：逐个获取（AKShare → baostock）
         if missing:
             print(f"  [行情] {len(missing)} 只备用源获取...")
             for code in missing:

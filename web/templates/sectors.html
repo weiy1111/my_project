@@ -10,18 +10,30 @@
     <div class="container">
         <header>
             <div>
-                <h1>大科技板块热度</h1>
-                <p>半导体、CPO、PCB、机器人、AI 软件等子板块资金与强度对比</p>
+                <h1>板块热度</h1>
+                <p>大科技与短线轮动方向的资金、强度和龙头对比</p>
             </div>
             <div class="header-right">
+                <select id="universe-selector">
+                    <option value="tech">大科技</option>
+                    <option value="rotation">短线轮动</option>
+                    <option value="power">电力</option>
+                    <option value="innovative_drug">创新药</option>
+                    <option value="consumer">消费</option>
+                    <option value="coal_oil_gas">煤炭油气</option>
+                    <option value="nonferrous">有色黄金</option>
+                    <option value="all">全部观察池</option>
+                </select>
                 <select id="sort-selector">
                     <option value="score">综合评分</option>
+                    <option value="short_term">短线轮动</option>
                     <option value="tomorrow">明日建仓</option>
                     <option value="flow_persistence">资金持续</option>
                     <option value="pullback">回踩机会</option>
                 </select>
                 <button id="refresh-btn" type="button">刷新</button>
                 <button id="save-btn" type="button">保存快照</button>
+                <a class="back-link" href="/rotation">短线轮动</a>
                 <a class="back-link" href="/">返回首页</a>
             </div>
         </header>
@@ -75,17 +87,29 @@
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('refresh-btn').addEventListener('click', () => loadSectors(false));
             document.getElementById('save-btn').addEventListener('click', () => loadSectors(true));
+            document.getElementById('universe-selector').addEventListener('change', onUniverseChange);
             document.getElementById('sort-selector').addEventListener('change', () => loadSectors(false));
             loadSectors(false);
         });
 
+        function onUniverseChange() {
+            const universe = document.getElementById('universe-selector').value;
+            const sort = document.getElementById('sort-selector');
+            if (universe !== 'tech' && sort.value === 'score') {
+                sort.value = 'short_term';
+            }
+            loadSectors(false);
+        }
+
         async function loadSectors(save) {
+            const universe = encodeURIComponent(document.getElementById('universe-selector').value);
             const sortBy = encodeURIComponent(document.getElementById('sort-selector').value);
-            const resp = await fetch(`/api/sectors?sort_by=${sortBy}${save ? '&save=1' : ''}`);
+            const resp = await fetch(`/api/sectors?universe=${universe}&sort_by=${sortBy}${save ? '&save=1' : ''}`);
             const data = await resp.json();
             sectors = data.items || [];
             selectedKey = selectedKey && sectors.some(x => x.key === selectedKey) ? selectedKey : (sectors[0] ? sectors[0].key : '');
-            document.getElementById('updated-at').textContent = save && data.saved ? `${data.updated_at} / 已保存 ${data.saved}` : (data.updated_at || '--');
+            const universeText = document.getElementById('universe-selector').selectedOptions[0].textContent;
+            document.getElementById('updated-at').textContent = save && data.saved ? `${universeText} ${data.updated_at} / 已保存 ${data.saved}` : `${universeText} ${data.updated_at || '--'}`;
             renderCards();
             renderTable();
             renderSectorStocks();
@@ -172,7 +196,7 @@
             box.innerHTML = sector.top_stocks.map(stock => `
                 <a class="sector-stock-card" href="/stock/${stock.code}">
                     <strong>${stock.code} ${stock.name}</strong>
-                    <span>建仓分 ${Number(stock.tomorrow_score || 0).toFixed(1)} / 综合 ${Number(stock.score || 0).toFixed(1)}</span>
+                    <span>短线 ${Number(stock.short_term_score || 0).toFixed(1)} / 建仓 ${Number(stock.tomorrow_score || 0).toFixed(1)} / 综合 ${Number(stock.score || 0).toFixed(1)}</span>
                     <span class="${Number(stock.main_net || 0) >= 0 ? 'profit' : 'loss'}">今日资金 ${formatAmount(stock.main_net)}</span>
                     <span>${stock.entry_status || stock.tomorrow_action || '-'}</span>
                 </a>

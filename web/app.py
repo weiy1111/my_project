@@ -4,9 +4,11 @@ import csv
 import json
 from datetime import datetime
 
+import pandas as pd
 from flask import Flask, jsonify, render_template, request
 
-from config import REPORT_DIR as PROJECT_REPORT_DIR
+from config import DATA_DIR, REPORT_DIR as PROJECT_REPORT_DIR
+from discovery.cache_store import kline_cache_path, read_df
 from discovery.db import (
     add_to_watchlist,
     delete_watchlist_item,
@@ -30,7 +32,22 @@ from discovery.db import (
 from discovery.alerts import evaluate_stock_alerts
 from discovery.llm import analyze_with_llm, build_prompt_summary
 from discovery.news import get_stock_news
-from discovery.scorer import DiscoveryFilters, discover_stocks, get_stock_snapshot, _get_akshare_daily_klines
+from discovery.announcements import get_stock_announcements
+from discovery.scorer import (
+    BALANCED_UNIVERSE,
+    DiscoveryFilters,
+    DISCOVERY_SPECIAL_UNIVERSES,
+    LEADER_UNIVERSE,
+    MAINLINE_UNIVERSE,
+    NON_TECH_LEADER_UNIVERSE,
+    discover_stocks,
+    get_stock_snapshot,
+    _get_akshare_daily_klines,
+    _is_kline_current,
+)
+from discovery.stock_search import lookup_stock_name, search_stocks
+from discovery.market_data import fetch_index_quotes, fetch_kline
+from discovery.rotation_pool import ROTATION_SECTOR_TAGS
 from discovery.tech_analysis import build_tech_analysis
 from discovery.sectors import build_sector_heat, save_sector_snapshots
 from discovery.timing import build_buy_timing, get_stock_flow_history
@@ -55,6 +72,52 @@ def _get_available_dates() -> list[str]:
 
 def _today_str() -> str:
     return datetime.now().strftime("%Y%m%d")
+
+
+def _kline_status(code: str, kline_df=None) -> dict:
+    code = str(code).zfill(6)
+    df = kline_df
+    source = "runtime"
+    path = ""
+    if df is None:
+        for candidate, candidate_source in (
+            (kline_cache_path(code), "discovery_cache"),
+            (DATA_DIR / f"{code}.csv", "data_cache"),
+        ):
+            cached = read_df(candidate)
+            if cached is not None and not cached.empty:
+                df = cached
+                source = candidate_source
+                path = str(candidate)
+                break
+    if df is None or getattr(df, "empty", True):
+        return {
+            "code": code,
+            "status": "missing",
+            "label": "无K线缓存",
+            "last_date": None,
+            "is_stale": True,
+            "source": "",
+            "path": "",
+        }
+    try:
+        if "date" in df.columns:
+            last_date = pd.to_datetime(df["date"], errors="coerce").dropna().max()
+        else:
+            last_date = pd.to_datetime(df.index, errors="coerce").dropna().max()
+        last_text = None if pd.isna(last_date) else pd.Timestamp(last_date).strftime("%Y-%m-%d")
+    except Exception:
+        last_text = None
+    is_stale = not _is_kline_current(df)
+    return {
+        "code": code,
+        "status": "stale" if is_stale else "current",
+        "label": "K线过期" if is_stale else "K线正常",
+        "last_date": last_text,
+        "is_stale": is_stale,
+        "source": source,
+        "path": path,
+    }
 
 
 def _read_trades(date: str) -> list[dict]:
@@ -180,6 +243,11 @@ def sectors_page():
     return render_template("sectors.html")
 
 
+@app.route("/rotation")
+def rotation_page():
+    return render_template("rotation.html")
+
+
 @app.route("/alerts")
 def alerts_page():
     return render_template("alerts.html")
@@ -198,8 +266,18 @@ def api_discovery():
     include_negative = request.args.get("include_negative", "0") == "1"
     sort_by = request.args.get("sort_by", "score")
     strict = request.args.get("strict", "0") == "1"
-    if sort_by not in {"score", "tomorrow", "flow_persistence", "pullback"}:
+    universe = request.args.get("universe", "tech")
+    short_term = request.args.get("short_term", "0") == "1"
+    include_chinext = request.args.get("include_chinext", "1") == "1"
+    include_star = request.args.get("include_star", "0") == "1"
+    allowed_universes = {"tech", "rotation", "all", *DISCOVERY_SPECIAL_UNIVERSES, *ROTATION_SECTOR_TAGS.keys()}
+    if universe not in allowed_universes:
+        universe = "tech"
+    if sort_by not in {"score", "tomorrow", "flow_persistence", "pullback", "short_term", "leader"}:
         sort_by = "score"
+    if universe in {LEADER_UNIVERSE, MAINLINE_UNIVERSE, NON_TECH_LEADER_UNIVERSE, BALANCED_UNIVERSE} and sort_by == "score":
+        sort_by = "leader"
+        short_term = True
 
     try:
         limit_int = max(10, min(int(limit), 200))
@@ -218,6 +296,12 @@ def api_discovery():
         include_negative_flow=include_negative,
         sort_by=sort_by,
         strict=strict,
+        tech_only=universe == "tech",
+        universe=universe,
+        short_term=short_term,
+        include_chinext=include_chinext,
+        include_star=include_star,
+        allow_estimated_flow=short_term or universe in DISCOVERY_SPECIAL_UNIVERSES,
     ))
     return jsonify(result)
 
@@ -241,7 +325,11 @@ def api_save_recommendations():
     date = payload.get("date") or datetime.now().strftime("%Y-%m-%d")
     sort_by = payload.get("sort_by") or request.args.get("sort_by", "tomorrow")
     period = payload.get("period") or request.args.get("period", "即时")
+    universe = payload.get("universe") or request.args.get("universe", "tech")
+    short_term = bool(payload.get("short_term", False)) or request.args.get("short_term", "0") == "1"
     strict = bool(payload.get("strict", False))
+    if universe not in {"tech", "rotation", "all", *DISCOVERY_SPECIAL_UNIVERSES, *ROTATION_SECTOR_TAGS.keys()}:
+        universe = "tech"
     try:
         limit = max(1, min(int(payload.get("limit") or request.args.get("limit", 20)), 100))
     except ValueError:
@@ -249,8 +337,12 @@ def api_save_recommendations():
     result = discover_stocks(DiscoveryFilters(
         period=period,
         limit=max(limit, 10),
-        sort_by=sort_by if sort_by in {"score", "tomorrow", "flow_persistence", "pullback"} else "tomorrow",
+        sort_by=sort_by if sort_by in {"score", "tomorrow", "flow_persistence", "pullback", "short_term", "leader"} else "tomorrow",
         strict=strict,
+        tech_only=universe == "tech",
+        universe=universe,
+        short_term=short_term or universe in DISCOVERY_SPECIAL_UNIVERSES,
+        allow_estimated_flow=short_term or universe in DISCOVERY_SPECIAL_UNIVERSES,
     ))
     items = (result.get("items") or [])[:limit]
     saved = save_recommendations(items, trade_date=date, sort_by=sort_by)
@@ -288,10 +380,67 @@ def api_get_watchlist():
             }
             update_watchlist_item(int(item["id"]), updates)
             item.update(updates)
+        item["kline_status"] = _kline_status(item.get("code", ""))
         base_price = float(item.get("recommended_price") or 0)
         latest_price = float(item.get("latest_price") or 0)
         item["since_added_return"] = (latest_price / base_price - 1) * 100 if base_price else 0
         refreshed.append(item)
+    return jsonify({"items": refreshed})
+
+
+@app.route("/api/watchlist/kline-status", methods=["GET"])
+def api_watchlist_kline_status():
+    items = get_watchlist()
+    return jsonify({
+        "items": [
+            {
+                "id": item.get("id"),
+                "code": item.get("code"),
+                "name": item.get("name"),
+                **_kline_status(item.get("code", "")),
+            }
+            for item in items
+        ]
+    })
+
+
+@app.route("/api/stock-search", methods=["GET"])
+def api_stock_search():
+    query = request.args.get("q", "")
+    try:
+        limit = max(1, min(int(request.args.get("limit", 12)), 50))
+    except ValueError:
+        limit = 12
+    return jsonify({"items": search_stocks(query, limit=limit)})
+
+
+@app.route("/api/market/indices", methods=["GET"])
+def api_market_indices():
+    return jsonify(fetch_index_quotes())
+
+
+@app.route("/api/stock/<code>/kline", methods=["GET"])
+def api_stock_kline(code: str):
+    period = request.args.get("period", "daily")
+    try:
+        count = max(20, min(int(request.args.get("count", 160)), 800))
+    except ValueError:
+        count = 160
+    return jsonify(fetch_kline(code.zfill(6), period=period, count=count).to_dict())
+
+
+@app.route("/api/watchlist/kline-refresh", methods=["POST"])
+def api_watchlist_kline_refresh():
+    refreshed = []
+    for item in get_watchlist():
+        code = str(item.get("code", "")).zfill(6)
+        df = _get_akshare_daily_klines(code, count=120, force_refresh=True)
+        refreshed.append({
+            "id": item.get("id"),
+            "code": code,
+            "name": item.get("name"),
+            **_kline_status(code, df),
+        })
     return jsonify({"items": refreshed})
 
 
@@ -310,10 +459,47 @@ def api_review_config_compare():
 @app.route("/api/sectors", methods=["GET"])
 def api_sectors():
     sort_by = request.args.get("sort_by", "score")
-    data = build_sector_heat(sort_by=sort_by if sort_by in {"score", "tomorrow", "flow_persistence", "pullback"} else "score")
+    universe = request.args.get("universe", "tech")
+    if universe not in {"tech", "rotation", "all", *DISCOVERY_SPECIAL_UNIVERSES, *ROTATION_SECTOR_TAGS.keys()}:
+        universe = "tech"
+    data = build_sector_heat(
+        sort_by=sort_by if sort_by in {"score", "tomorrow", "flow_persistence", "pullback", "short_term", "leader"} else "score",
+        universe=universe,
+    )
     if request.args.get("save") == "1":
         data["saved"] = save_sector_snapshots(data.get("items") or [])
     return jsonify(data)
+
+
+@app.route("/api/rotation", methods=["GET"])
+def api_rotation():
+    universe = request.args.get("universe", "rotation")
+    if universe not in {"rotation", "all", *ROTATION_SECTOR_TAGS.keys()}:
+        universe = "rotation"
+    try:
+        limit = max(20, min(int(request.args.get("limit", 100)), 200))
+    except ValueError:
+        limit = 100
+    sectors = build_sector_heat(sort_by="short_term", limit=limit, universe=universe)
+    discovery = discover_stocks(DiscoveryFilters(
+        period="即时",
+        limit=limit,
+        include_negative_flow=True,
+        sort_by="short_term",
+        tech_only=False,
+        universe=universe,
+        short_term=True,
+        allow_estimated_flow=True,
+    ))
+    items = discovery.get("items") or []
+    return jsonify({
+        "updated_at": discovery.get("updated_at") or sectors.get("updated_at"),
+        "scope": universe,
+        "sectors": sectors.get("items") or [],
+        "items": items,
+        "leader": items[0] if items else None,
+        "summary": discovery.get("summary") or {},
+    })
 
 
 @app.route("/api/alerts", methods=["GET"])
@@ -397,7 +583,14 @@ def api_add_watchlist():
     if not item and code and code != "000000":
         item = get_stock_snapshot(code, payload.get("period") or "即时")
     if not item:
-        return jsonify({"error": "not_found", "code": code}), 404
+        if len(code) != 6 or not code.isdigit() or code.startswith(("4", "8")):
+            return jsonify({"error": "not_found", "code": code}), 404
+        item = {
+            "code": code,
+            "name": lookup_stock_name(code),
+            "status": "等待数据",
+            "notes": "手动收藏，暂未获取到实时行情，刷新观察池或进入详情页时会再次尝试分析。",
+        }
     add_to_watchlist(item, source=source)
     return jsonify({"ok": True, "items": get_watchlist()})
 
@@ -418,20 +611,30 @@ def api_delete_watchlist(item_id: int):
 @app.route("/api/stock/<code>")
 def api_stock(code: str):
     period = request.args.get("period", "即时")
+    force_refresh = request.args.get("force_refresh", "0") == "1"
     code = code.zfill(6)
-    item = get_stock_snapshot(code, period)
+    tech_kline = _get_akshare_daily_klines(code, count=80, force_refresh=force_refresh)
+    item = get_stock_snapshot(code, period, force_refresh=force_refresh, kline_df=tech_kline)
     if not item:
         return jsonify({"error": "not_found", "code": code}), 404
     history = get_stock_flow_history(code)
     news = get_stock_news(code, item.get("name", ""))
+    announcements = get_stock_announcements(code)
     save_news_events(code, item.get("name", ""), news)
     item["flow_history"] = history
     item["buy_timing"] = build_buy_timing(item, history)
     item["return_stats"] = _build_return_stats(code)
     item["news"] = news
+    item["announcements"] = announcements
     # 技术分析
-    tech_kline = _get_akshare_daily_klines(code, count=80)
     item["tech_analysis"] = build_tech_analysis(tech_kline)
+    item["kline_status"] = _kline_status(code, tech_kline)
+    if tech_kline is not None and not tech_kline.empty:
+        item["kline_last_date"] = tech_kline.index[-1].strftime("%Y-%m-%d")
+        item["kline_is_stale"] = not _is_kline_current(tech_kline)
+    else:
+        item["kline_last_date"] = None
+        item["kline_is_stale"] = True
     item["accumulation"] = {
         key: item.get(key)
         for key in (

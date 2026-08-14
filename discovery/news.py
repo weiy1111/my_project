@@ -9,6 +9,7 @@ from urllib.parse import quote
 import requests
 
 from discovery.cache_store import is_fresh, news_cache_path, read_json, write_json
+from discovery.data_quality import attach_source
 
 
 _NEWS_CACHE: dict[str, tuple[float, dict]] = {}
@@ -152,6 +153,7 @@ def get_stock_news(code: str, name: str = "", limit: int = 12) -> dict:
                     "negative_count": analysis["negative_count"],
                 })
                 write_json(path, disk_data)
+            disk_data = attach_source(disk_data, disk_data.get("source", "news_cache"), "cached")
             _NEWS_CACHE[code] = (now, disk_data)
             return disk_data
 
@@ -161,6 +163,7 @@ def get_stock_news(code: str, name: str = "", limit: int = 12) -> dict:
         items = []
 
     analysis = analyze_news_items(items)
+    state = "realtime" if items else "missing"
     result = {
         "code": code,
         "source": "eastmoney" if items else "none",
@@ -171,6 +174,7 @@ def get_stock_news(code: str, name: str = "", limit: int = 12) -> dict:
         "positive_count": analysis["positive_count"],
         "negative_count": analysis["negative_count"],
     }
+    result = attach_source(result, result["source"], state)
     if items:
         write_json(path, result)
     else:
@@ -186,7 +190,7 @@ def get_stock_news(code: str, name: str = "", limit: int = 12) -> dict:
                     "negative_count": analysis["negative_count"],
                 })
                 write_json(path, disk_data)
-            result = disk_data
+            result = attach_source(disk_data, disk_data.get("source", "news_cache"), "cached")
 
     _NEWS_CACHE[code] = (now, result)
     return result

@@ -5,3 +5,4 @@ __pycache__/
 data/cache/*.csv
 data/discovery_cache/
 build/
+dist/

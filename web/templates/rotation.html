@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>短线轮动</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>短线轮动</h1>
+                <p>先看资金偏好的方向，再筛选适合持有 2-5 个交易日的龙头候选</p>
+            </div>
+            <div class="header-right">
+                <select id="universe-selector">
+                    <option value="rotation">全部轮动</option>
+                    <option value="power">电力</option>
+                    <option value="innovative_drug">创新药</option>
+                    <option value="consumer">消费</option>
+                    <option value="coal_oil_gas">煤炭油气</option>
+                    <option value="nonferrous">有色黄金</option>
+                    <option value="all">全部观察池</option>
+                </select>
+                <select id="limit-selector">
+                    <option value="60">扫描 60 只</option>
+                    <option value="100" selected>扫描 100 只</option>
+                    <option value="160">扫描 160 只</option>
+                </select>
+                <button id="refresh-btn" type="button">刷新</button>
+                <a class="back-link" href="/">首页</a>
+                <a class="back-link" href="/sectors">板块热度</a>
+            </div>
+        </header>
+
+        <div class="cards">
+            <div class="card">
+                <div class="card-label">最强方向</div>
+                <div class="card-value card-value-sm" id="top-sector">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">首选龙头</div>
+                <div class="card-value card-value-sm" id="leader-stock">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">短线分</div>
+                <div class="card-value" id="leader-score">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">主力净额</div>
+                <div class="card-value" id="leader-flow">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">候选数量</div>
+                <div class="card-value" id="candidate-count">--</div>
+            </div>
+            <div class="card">
+                <div class="card-label">最后更新</div>
+                <div class="card-value card-value-sm" id="updated-at">--</div>
+            </div>
+        </div>
+
+        <div class="rotation-layout">
+            <section class="section">
+                <div class="section-title">
+                    <h3>资金偏好方向</h3>
+                    <span>按短线热度排序</span>
+                </div>
+                <div id="rotation-sectors" class="rotation-sector-grid"></div>
+            </section>
+
+            <aside class="section">
+                <div class="section-title">
+                    <h3>执行计划</h3>
+                    <span id="plan-code">--</span>
+                </div>
+                <div id="rotation-plan" class="ai-detail empty-panel">等待数据</div>
+            </aside>
+        </div>
+
+        <section class="section">
+            <div class="section-title">
+                <h3>短线候选</h3>
+                <span>不追连续急拉，优先等回踩承接</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>板块</th>
+                            <th>价格</th>
+                            <th>涨跌幅</th>
+                            <th>主力净额</th>
+                            <th>净占比</th>
+                            <th>短线分</th>
+                            <th>公告风险</th>
+                            <th>动作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rotation-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let items = [];
+        let sectors = [];
+        let selectedCode = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('refresh-btn').addEventListener('click', loadRotation);
+            document.getElementById('universe-selector').addEventListener('change', loadRotation);
+            document.getElementById('limit-selector').addEventListener('change', loadRotation);
+            loadRotation();
+        });
+
+        async function loadRotation() {
+            const universe = encodeURIComponent(document.getElementById('universe-selector').value);
+            const limit = encodeURIComponent(document.getElementById('limit-selector').value);
+            const resp = await fetch(`/api/rotation?universe=${universe}&limit=${limit}`);
+            const data = await resp.json();
+            items = data.items || [];
+            sectors = data.sectors || [];
+            selectedCode = selectedCode && items.some(item => item.code === selectedCode)
+                ? selectedCode
+                : (items[0] ? items[0].code : '');
+            renderOverview(data);
+            renderSectors();
+            renderTable();
+            renderPlan();
+        }
+
+        function renderOverview(data) {
+            const leader = data.leader || {};
+            const topSector = sectors[0] || {};
+            document.getElementById('top-sector').textContent = topSector.name
+                ? `${topSector.name} ${Number(topSector.heat_score || 0).toFixed(1)}`
+                : '--';
+            document.getElementById('leader-stock').textContent = leader.code
+                ? `${leader.code} ${leader.name}`
+                : '--';
+            document.getElementById('leader-score').textContent = leader.code ? Number(leader.short_term_score || 0).toFixed(1) : '--';
+            document.getElementById('leader-flow').textContent = leader.code ? formatAmount(leader.main_net) : '--';
+            document.getElementById('candidate-count').textContent = items.length;
+            document.getElementById('updated-at').textContent = data.updated_at ? data.updated_at.split(' ')[1] : '--';
+        }
+
+        function renderSectors() {
+            const box = document.getElementById('rotation-sectors');
+            if (!sectors.length) {
+                box.innerHTML = '<div class="empty-panel">暂无板块数据</div>';
+                return;
+            }
+            box.innerHTML = sectors.slice(0, 8).map(sector => {
+                const leader = sector.strongest || {};
+                return `<button class="rotation-sector-card" type="button" data-code="${leader.code || ''}">
+                    <span>${sector.name}</span>
+                    <strong>${Number(sector.heat_score || 0).toFixed(1)}</strong>
+                    <em>${formatAmount(sector.main_net)} / ${sector.up_count || 0}/${sector.stock_count || 0}</em>
+                    <small>${leader.code || '-'} ${leader.name || ''}</small>
+                </button>`;
+            }).join('');
+            box.querySelectorAll('button[data-code]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.code) {
+                        selectedCode = btn.dataset.code;
+                        renderTable();
+                        renderPlan();
+                    }
+                });
+            });
+        }
+
+        function renderTable() {
+            const body = document.getElementById('rotation-body');
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="11" class="empty">暂无短线候选</td></tr>';
+                return;
+            }
+            body.innerHTML = items.slice(0, 30).map((item, idx) => {
+                const active = item.code === selectedCode ? ' class="selected-row"' : '';
+                const sectorsText = (item.sectors || []).join('、') || '-';
+                return `<tr${active} data-code="${item.code}">
+                    <td>${idx + 1}</td>
+                    <td class="code">${item.code}</td>
+                    <td>${item.name || '-'}</td>
+                    <td>${sectorsText}</td>
+                    <td>${item.price ? Number(item.price).toFixed(2) : '-'}</td>
+                    <td class="${Number(item.pct_change || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.pct_change)}</td>
+                    <td class="${Number(item.main_net || 0) >= 0 ? 'profit' : 'loss'}">${formatAmount(item.main_net)}</td>
+                    <td class="${Number(item.main_pct || 0) >= 0 ? 'profit' : 'loss'}">${formatPct(item.main_pct)}</td>
+                    <td><span class="score-pill">${Number(item.short_term_score || 0).toFixed(1)}</span></td>
+                    <td>${item.announcement_risk_level || 'none'} / ${Number(item.announcement_risk_score || 0).toFixed(0)}</td>
+                    <td>${item.tomorrow_action || item.entry_status || '-'}</td>
+                </tr>`;
+            }).join('');
+            body.querySelectorAll('tr[data-code]').forEach(row => {
+                row.addEventListener('click', () => {
+                    selectedCode = row.dataset.code;
+                    renderTable();
+                    renderPlan();
+                });
+                row.addEventListener('dblclick', () => {
+                    window.location.href = `/stock/${row.dataset.code}`;
+                });
+            });
+        }
+
+        function renderPlan() {
+            const stock = items.find(item => item.code === selectedCode);
+            const box = document.getElementById('rotation-plan');
+            document.getElementById('plan-code').textContent = stock ? `${stock.code} ${stock.name}` : '--';
+            if (!stock) {
+                box.className = 'ai-detail empty-panel';
+                box.textContent = '选择一只候选股';
+                return;
+            }
+            box.className = 'ai-detail';
+            box.innerHTML = `
+                <div class="decision">${stock.tomorrow_action || stock.entry_status || '观察'}</div>
+                <p>${stock.ai?.summary || ''}</p>
+                <div class="metric-grid">
+                    <div><span>短线分</span><strong>${Number(stock.short_term_score || 0).toFixed(1)}</strong></div>
+                    <div><span>综合分</span><strong>${Number(stock.score || 0).toFixed(1)}</strong></div>
+                    <div><span>主力净额</span><strong>${formatAmount(stock.main_net)}</strong></div>
+                    <div><span>净占比</span><strong>${formatPct(stock.main_pct)}</strong></div>
+                    <div><span>资金结构</span><strong>${stock.money_structure_label || '-'}</strong></div>
+                    <div><span>公告风险</span><strong>${stock.announcement_risk_level || 'none'} / ${Number(stock.announcement_risk_score || 0).toFixed(0)}</strong></div>
+                </div>
+                <h4>2-5日执行</h4>
+                <ul>
+                    <li>先看板块是否仍在前三方向，若板块掉出前三则降低优先级。</li>
+                    <li>不追连续急拉，优先等分时回踩承接或次日低吸。</li>
+                    <li>触发状态：${stock.entry_status || '-'}，回踩区间：${stock.entry_pullback_zone || '-'}</li>
+                    <li>下一步：${stock.entry_next_action || '-'}</li>
+                    <li>风险：${stock.tomorrow_risk || '-'}</li>
+                    <li>公告：${stock.announcement_risk_summary || '-'}</li>
+                </ul>
+                <a class="detail-link" href="/stock/${stock.code}">进入二级详情页</a>
+            `;
+        }
+
+        function formatAmount(value) {
+            const val = Number(value || 0);
+            const sign = val < 0 ? '-' : '';
+            const abs = Math.abs(val);
+            if (abs >= 1e8) return `${sign}${(abs / 1e8).toFixed(2)}亿`;
+            if (abs >= 1e4) return `${sign}${(abs / 1e4).toFixed(2)}万`;
+            return `${sign}${abs.toFixed(0)}`;
+        }
+
+        function formatPct(value) {
+            const val = Number(value || 0);
+            return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+        }
+    </script>
+</body>
+</html>

@@ -125,7 +125,25 @@
                 <section class="section tech-section">
                     <div class="section-title">
                         <h3>📐 技术分析</h3>
-                        <span id="tech-risk-level" class="tech-risk-badge">--</span>
+                        <div class="tech-title-actions">
+                            <span id="realtime-kline-status">日线分析</span>
+                            <span id="tech-risk-level" class="tech-risk-badge">--</span>
+                        </div>
+                    </div>
+
+                    <div class="kline-period-bar">
+                        <button type="button" class="period-btn active" data-period="daily">日</button>
+                        <button type="button" class="period-btn" data-period="weekly">周</button>
+                        <button type="button" class="period-btn" data-period="monthly">月</button>
+                        <button type="button" class="period-btn" data-period="1min">1分</button>
+                        <button type="button" class="period-btn" data-period="5min">5分</button>
+                        <button type="button" class="period-btn" data-period="15min">15分</button>
+                        <button type="button" class="period-btn" data-period="30min">30分</button>
+                    </div>
+                    <div class="kline-view-bar">
+                        <span>视图</span>
+                        <button type="button" class="view-btn active" data-view="candlestick">K线</button>
+                        <button type="button" class="view-btn" data-view="line">折线</button>
                     </div>
 
                     <!-- 顶部指标条 -->
@@ -171,6 +189,8 @@
                             <div id="chart-volume" class="tech-volume-chart"></div>
                         </div>
                         <div class="tech-side-col">
+                            <!-- 今日操作卡片 -->
+                            <div id="tech-trade-plan" class="tech-card tech-trade-card"></div>
                             <!-- 双头形态卡片 -->
                             <div id="tech-double-top" class="tech-card tech-dt-card"></div>
                             <!-- 支撑压力卡片 -->
@@ -179,6 +199,14 @@
                             <div id="tech-judgment" class="tech-card tech-judge-card"></div>
                         </div>
                     </div>
+                </section>
+
+                <section class="section">
+                    <div class="section-title">
+                        <h3>公告风险</h3>
+                        <span id="announcement-source">--</span>
+                    </div>
+                    <div id="announcement-list" class="news-list">加载中...</div>
                 </section>
 
                 <section class="section">
@@ -261,6 +289,9 @@
         let returnChart = null;
         let klineChart = null;
         let techVolChart = null;
+        let activeKlinePeriod = 'daily';
+        let activeKlineView = 'candlestick';
+        let latestKlineItems = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
@@ -278,23 +309,180 @@
                 if (klineChart) klineChart.resize();
                 if (techVolChart) techVolChart.resize();
             });
-            document.getElementById('refresh-btn').addEventListener('click', loadDetail);
+            document.getElementById('refresh-btn').addEventListener('click', () => loadDetail(true));
             document.getElementById('watchlist-btn').addEventListener('click', addToWatchlist);
             document.getElementById('period-selector').addEventListener('change', loadDetail);
             document.getElementById('llm-btn').addEventListener('click', loadLlm);
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeKlinePeriod = btn.dataset.period || 'daily';
+                    document.querySelectorAll('.period-btn').forEach(x => x.classList.remove('active'));
+                    btn.classList.add('active');
+                    loadRealtimeKline();
+                });
+            });
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeKlineView = btn.dataset.view || 'candlestick';
+                    document.querySelectorAll('.view-btn').forEach(x => x.classList.remove('active'));
+                    btn.classList.add('active');
+                    if (latestKlineItems.length) renderKlineByMode(latestKlineItems);
+                });
+            });
             loadDetail();
         });
 
-        async function loadDetail() {
+        async function loadDetail(forceRefresh = false) {
             const period = encodeURIComponent(document.getElementById('period-selector').value);
-            const resp = await fetch(`/api/stock/${code}?period=${period}`);
+            const force = forceRefresh ? '&force_refresh=1' : '';
+            const resp = await fetch(`/api/stock/${code}?period=${period}${force}`);
             stock = await resp.json();
             if (stock.error) {
                 document.getElementById('stock-title').textContent = `${code} 未找到`;
                 return;
             }
             renderDetail();
+            loadRealtimeKline();
             loadLlmLogs();
+        }
+
+        async function loadRealtimeKline() {
+            const status = document.getElementById('realtime-kline-status');
+            status.textContent = 'K线加载中...';
+            try {
+                const resp = await fetch(`/api/stock/${code}/kline?period=${encodeURIComponent(activeKlinePeriod)}&count=220`);
+                const data = await resp.json();
+                if (!data.items || !data.items.length) {
+                    status.textContent = `K线获取失败 ${data.error || ''}`;
+                    return;
+                }
+                latestKlineItems = data.items || [];
+                status.textContent = `${data.source || '行情源'} / ${data.last_time || '--'}`;
+                renderKlineByMode(latestKlineItems);
+            } catch (err) {
+                status.textContent = `K线获取失败 ${err}`;
+            }
+        }
+
+        function renderKlineByMode(items) {
+            if (activeKlineView === 'line') {
+                renderLineFromItems(items);
+            } else {
+                renderKlineFromItems(items);
+            }
+        }
+
+        function renderKlineFromItems(items) {
+            const dates = items.map(x => x.date);
+            const ohlc = items.map(x => [x.open, x.close, x.low, x.high]);
+            const volumes = items.map(x => Number(x.volume || 0));
+            const close = items.map(x => Number(x.close || 0));
+            const ma = n => close.map((_, i) => {
+                if (i + 1 < n) return null;
+                let s = 0; for (let j = i + 1 - n; j <= i; j++) s += close[j];
+                return Number((s / n).toFixed(3));
+            });
+            const upColor = '#d64545';
+            const downColor = '#1f9d55';
+            klineChart.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
+                legend: { data: ['K线', 'MA5', 'MA10', 'MA20'], top: 2, right: 10 },
+                grid: { left: 58, right: 72, top: 30, bottom: 42 },
+                dataZoom: [
+                    { type: 'inside', start: 55, end: 100 },
+                    { type: 'slider', start: 55, end: 100, height: 18, bottom: 8 },
+                ],
+                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10 } },
+                yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+                series: [
+                    { name: 'K线', type: 'candlestick', data: ohlc, itemStyle: { color: upColor, color0: downColor, borderColor: upColor, borderColor0: downColor } },
+                    { name: 'MA5', type: 'line', data: ma(5), symbol: 'none', lineStyle: { width: 1.2, color: '#e6a817' } },
+                    { name: 'MA10', type: 'line', data: ma(10), symbol: 'none', lineStyle: { width: 1.2, color: '#2d69be' } },
+                    { name: 'MA20', type: 'line', data: ma(20), symbol: 'none', lineStyle: { width: 1.2, color: '#9b59b6' } },
+                ],
+            }, true);
+            techVolChart.setOption({
+                tooltip: { trigger: 'axis', formatter: p => `${p[0].axisValue}<br/>成交量: ${formatAmount(p[0].value)}` },
+                grid: { left: 58, right: 72, top: 16, bottom: 24 },
+                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10 } },
+                yAxis: { type: 'value', axisLabel: { formatter: v => formatAmount(v) } },
+                series: [{
+                    type: 'bar',
+                    data: volumes.map((v, i) => ({ value: v, itemStyle: { color: ohlc[i][1] >= ohlc[i][0] ? 'rgba(214,69,69,0.65)' : 'rgba(31,157,85,0.65)' } })),
+                    barMaxWidth: 12,
+                }],
+            }, true);
+        }
+
+        function renderLineFromItems(items) {
+            const dates = items.map(x => x.date);
+            const close = items.map(x => Number(x.close || 0));
+            const open = items.map(x => Number(x.open || 0));
+            const high = items.map(x => Number(x.high || 0));
+            const low = items.map(x => Number(x.low || 0));
+            const volumes = items.map(x => Number(x.volume || 0));
+            const ma = n => close.map((_, i) => {
+                if (i + 1 < n) return null;
+                let s = 0; for (let j = i + 1 - n; j <= i; j++) s += close[j];
+                return Number((s / n).toFixed(3));
+            });
+            const base = close.length ? close[0] : 0;
+            const pct = close.map(v => base ? Number(((v / base - 1) * 100).toFixed(2)) : 0);
+            const upColor = '#d64545';
+            const downColor = '#1f9d55';
+            klineChart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: 'rgba(255,255,255,0.96)',
+                    borderColor: '#e5e7eb',
+                    textStyle: { fontSize: 12, color: '#1f2933' },
+                    formatter: params => {
+                        if (!params.length) return '';
+                        const i = params[0].dataIndex;
+                        return `<div style="font-weight:600;margin-bottom:4px">${dates[i]}</div>
+                            <div>价 ${close[i]?.toFixed(3) || '--'} / ${pct[i] >= 0 ? '+' : ''}${pct[i]?.toFixed(2) || '0.00'}%</div>
+                            <div style="font-size:11px;color:#64748b">开 ${open[i]?.toFixed(3) || '--'} 高 ${high[i]?.toFixed(3) || '--'} 低 ${low[i]?.toFixed(3) || '--'}</div>`;
+                    },
+                },
+                legend: { data: ['价格', 'MA5', 'MA10', 'MA20'], top: 2, right: 10 },
+                grid: { left: 58, right: 72, top: 30, bottom: 42 },
+                dataZoom: [
+                    { type: 'inside', start: 55, end: 100 },
+                    { type: 'slider', start: 55, end: 100, height: 18, bottom: 8 },
+                ],
+                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10 } },
+                yAxis: [
+                    { type: 'value', scale: true, splitLine: { lineStyle: { color: '#f3f4f6' } } },
+                    { type: 'value', scale: true, axisLabel: { formatter: v => `${v.toFixed(1)}%` }, splitLine: { show: false } },
+                ],
+                series: [
+                    {
+                        name: '价格',
+                        type: 'line',
+                        data: close,
+                        smooth: true,
+                        symbol: 'none',
+                        lineStyle: { width: 2, color: '#2d69be' },
+                        areaStyle: { color: 'rgba(45,105,190,0.08)' },
+                    },
+                    { name: 'MA5', type: 'line', data: ma(5), symbol: 'none', lineStyle: { width: 1.1, color: '#e6a817' } },
+                    { name: 'MA10', type: 'line', data: ma(10), symbol: 'none', lineStyle: { width: 1.1, color: '#7c3aed' } },
+                    { name: 'MA20', type: 'line', data: ma(20), symbol: 'none', lineStyle: { width: 1.1, color: '#1f9d55' } },
+                    { name: '涨跌幅', type: 'line', yAxisIndex: 1, data: pct, symbol: 'none', lineStyle: { width: 0, opacity: 0 }, tooltip: { show: false } },
+                ],
+            }, true);
+            techVolChart.setOption({
+                tooltip: { trigger: 'axis', formatter: p => `${p[0].axisValue}<br/>成交量: ${formatAmount(p[0].value)}` },
+                grid: { left: 58, right: 72, top: 16, bottom: 24 },
+                xAxis: { type: 'category', data: dates, axisLabel: { fontSize: 10 } },
+                yAxis: { type: 'value', axisLabel: { formatter: v => formatAmount(v) } },
+                series: [{
+                    type: 'bar',
+                    data: volumes.map((v, i) => ({ value: v, itemStyle: { color: close[i] >= open[i] ? 'rgba(214,69,69,0.65)' : 'rgba(31,157,85,0.65)' } })),
+                    barMaxWidth: 12,
+                }],
+            }, true);
         }
 
         async function addToWatchlist() {
@@ -341,7 +529,10 @@
             document.getElementById('trigger').textContent = timing.trigger || '--';
             document.getElementById('stop-loss').textContent = timing.stop_loss || '--';
             document.getElementById('timing-summary').textContent = timing.summary || '--';
-            document.getElementById('updated-at').textContent = stock.updated_at || '--';
+            const klineStatus = stock.kline_status || {};
+            document.getElementById('updated-at').textContent = klineStatus.last_date
+                ? `${stock.updated_at || '--'} / ${klineStatus.label} ${klineStatus.last_date}`
+                : `${stock.updated_at || '--'} / ${klineStatus.label || '未获取到K线'}`;
             renderEntryChecks(stock.entry_checks || []);
 
             const history = stock.flow_history || {};
@@ -350,6 +541,7 @@
             renderReturnStats(stock.return_stats || {});
 
             const ai = stock.ai || {};
+            renderAnnouncements(stock.announcements || {});
             renderNews(stock.news || {});
             document.getElementById('local-analysis').innerHTML = `
                 <p>${ai.summary || ''}</p>
@@ -410,6 +602,8 @@
             const dt = tech.double_top || {};
             const sr = tech.support_resistance || {};
             const judgment = tech.judgment || {};
+            const candle = tech.candlestick || {};
+            const plan = tech.trading_plan || {};
 
             // ---- 风险标签 ----
             const riskEl = document.getElementById('tech-risk-level');
@@ -434,6 +628,29 @@
                 el.textContent = text || '--';
                 el.className = 'tech-ind-value' + (cls ? ' ' + cls : '');
             }
+
+            // ---- 今日操作卡片 ----
+            const planBox = document.getElementById('tech-trade-plan');
+            const planClass = `trade-${plan.action_class || 'watch'}`;
+            planBox.className = `tech-card tech-trade-card ${planClass}`;
+            planBox.innerHTML = `
+                <div class="tech-card-title">今日操作 <span class="trade-score">${Number(plan.score || 0).toFixed(0)}分</span></div>
+                <div class="trade-action">${plan.action || '--'}</div>
+                <div class="trade-summary">${plan.summary || '--'}</div>
+                <div class="trade-grid">
+                    <div><span>买入区间</span><strong>${plan.buy_zone || '--'}</strong></div>
+                    <div><span>突破触发</span><strong>${formatPrice(plan.breakout_trigger)}</strong></div>
+                    <div><span>止损/失效</span><strong>${formatPrice(plan.stop_loss)} / ${formatPrice(plan.invalid_price)}</strong></div>
+                    <div><span>减仓压力</span><strong>${formatPrice(plan.reduce_price)}</strong></div>
+                    <div><span>最近支撑</span><strong>${formatPrice(plan.near_support)} (${formatPct(plan.support_distance_pct)})</strong></div>
+                    <div><span>最近压力</span><strong>${formatPrice(plan.near_resistance)} (${formatPct(plan.resistance_distance_pct)})</strong></div>
+                </div>
+                <div class="trade-list">
+                    <div><strong>K线</strong><span>${candle.pattern || '--'}：${candle.detail || '--'}</span></div>
+                    <div><strong>支持</strong><span>${(plan.reasons || []).join('；') || '--'}</span></div>
+                    <div><strong>风险</strong><span>${(plan.warnings || []).join('；') || '--'}</span></div>
+                </div>
+            `;
 
             // ---- 双头形态卡片 ----
             const dtBox = document.getElementById('tech-double-top');
@@ -721,6 +938,31 @@
                 return `<div class="news-item">
                     <div class="news-title">${titleHtml}</div>
                     <div class="news-meta">${item.date || ''} ${item.source || ''} · ${sentiment} · ${types} · ${Number(item.news_score || 0).toFixed(0)}分</div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderAnnouncements(data) {
+            const list = document.getElementById('announcement-list');
+            const riskItems = (data.items || []).filter(item => (item.risk_matches || []).length);
+            const level = data.announcement_risk_level || 'none';
+            const score = Number(data.announcement_risk_score || 0);
+            const source = data.source_state || data.source || 'missing';
+            document.getElementById('announcement-source').textContent =
+                `${data.announcement_risk_summary || '暂无公告风险'} / ${score.toFixed(1)}分 / ${source}`;
+            if (!riskItems.length) {
+                list.innerHTML = '<div class="empty-panel">近公告未命中减持、解禁、问询、业绩预警等硬风险</div>';
+                return;
+            }
+            const levelText = level === 'high' ? '高风险' : level === 'medium' ? '中风险' : '低风险';
+            list.innerHTML = riskItems.slice(0, 8).map(item => {
+                const title = item.title || '';
+                const url = item.url || '';
+                const titleHtml = url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : title;
+                const labels = (item.risk_matches || []).map(x => x.label).join('、') || '风险';
+                return `<div class="news-item">
+                    <div class="news-title">${titleHtml}</div>
+                    <div class="news-meta">${item.date || ''} ${item.source || ''} · ${levelText} · ${labels} · ${Number(item.risk_score || 0).toFixed(0)}分</div>
                 </div>`;
             }).join('');
         }
