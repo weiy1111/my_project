@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 data/cache/*.csv
 data/discovery_cache/
+build/

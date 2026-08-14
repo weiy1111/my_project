@@ -9,6 +9,7 @@
 - [安装与环境文档](docs/INSTALL.md)：pro 环境、依赖安装、版本不兼容排错。
 - [使用文档](docs/USER_GUIDE.md)：启动、页面说明、每日使用流程、常见问题。
 - [技术文档](docs/TECHNICAL.md)：架构、模块、数据库、API、缓存和维护说明。
+- [GitHub A股 Skills 候选清单](docs/GITHUB_SKILLS.md)：外部选股/数据/主线分析 skill 的评估和接入建议。
 - [TODO](TODO.md)：已完成能力和后续扩展计划。
 
 ## 核心能力
@@ -197,6 +198,50 @@ scripts\run_dashboard_win.bat
 python scripts/discover_stocks.py --period 即时 --top 20
 python scripts/discover_stocks.py --period 5日排行 --top 30 --min-score 65
 ```
+
+### 短线轮动龙头
+
+用于市场主线不在科技、资金高速轮动时，先判断资金偏好的方向，再找适合持有 2-5 个交易日的龙头候选：
+
+```bash
+python scripts/discover_rotation_leaders.py --universe rotation --top 10
+python scripts/discover_rotation_leaders.py --universe power --top 5
+python scripts/discover_rotation_leaders.py --universe innovative_drug --top 5
+python scripts/discover_rotation_leaders.py --universe consumer --top 5
+```
+
+也可以复用通用扫描入口：
+
+```bash
+python scripts/discover_stocks.py --universe rotation --short-term --top 20
+```
+
+短线轮动模式覆盖电力/公用事业、创新药/医药、消费/食品饮料、煤炭油气、有色黄金等方向。它依赖实时行情/资金流；如果接口不可用，会稳定输出空候选，不会伪造推荐。
+
+### 外部 GitHub Skill 候选
+
+```bash
+python scripts/list_external_skills.py --min-score 80
+python scripts/list_external_skills.py --codex-ready --format markdown
+```
+
+### 数据源健康检查
+
+参考 `a-stock-data` 的多源数据思路，项目会给行情、资金流和新闻结果附加来源可靠性字段：
+
+```bash
+python scripts/check_data_sources.py 002463 002371 --news --announcements
+```
+
+输出会区分 `realtime`、`cached`、`estimated`、`historical`、`missing`，避免把缓存或估算数据当成实时结论。
+
+### 公告风险检查
+
+```bash
+python scripts/check_announcement_risk.py 002463 002371
+```
+
+公告风险会识别减持、解禁、问询函、监管函、立案处罚、业绩预警、质押冻结、重大诉讼、异动风险提示等项目；严选模式会剔除高风险公告标的。
 
 ### 预热本地缓存
 
