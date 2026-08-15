@@ -337,7 +337,7 @@ def _fetch_baostock_kline(code: str) -> dict | None:
 def get_realtime_quotes(codes: list[str]) -> dict[str, dict]:
     """获取多只股票实时快照
 
-    优先级：新浪实时API → 腾讯实时API → 东方财富实时API → AKShare日K → baostock日K
+    优先级：腾讯实时API → 新浪实时API → 东方财富实时API → AKShare日K → baostock日K
     """
     global _quotes_cache, _quotes_cache_time
     now = time.time()
@@ -352,18 +352,18 @@ def get_realtime_quotes(codes: list[str]) -> dict[str, dict]:
     missing = [c for c in codes if c not in _quotes_cache or now - _quotes_cache_time >= _QUOTES_CACHE_TTL]
 
     if missing:
-        # 方式1：新浪财经批量API（一次请求，不限速）
-        sina_result = _fetch_sina_realtime(missing)
-        if sina_result:
-            _quotes_cache.update(sina_result)
-            missing = [c for c in missing if c not in sina_result]
+        # 方式1：腾讯批量API（优先，稳定）
+        tencent_result = _fetch_tencent_realtime(missing)
+        if tencent_result:
+            _quotes_cache.update(tencent_result)
+            missing = [c for c in missing if c not in tencent_result]
 
-        # 方式2：腾讯批量API
+        # 方式2：新浪财经批量API
         if missing:
-            tencent_result = _fetch_tencent_realtime(missing)
-            if tencent_result:
-                _quotes_cache.update(tencent_result)
-                missing = [c for c in missing if c not in tencent_result]
+            sina_result = _fetch_sina_realtime(missing)
+            if sina_result:
+                _quotes_cache.update(sina_result)
+                missing = [c for c in missing if c not in sina_result]
 
         # 方式3：东方财富批量API
         if missing:
