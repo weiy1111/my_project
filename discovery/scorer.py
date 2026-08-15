@@ -20,6 +20,7 @@ from discovery.announcements import get_stock_announcements
 from discovery.cache_store import history_cache_path, is_fresh, kline_cache_path, news_cache_path, read_df, read_json, write_df
 from discovery.db import DEFAULT_SCORE_CONFIG, get_score_config
 from discovery.fund_flow import get_fund_flow_rank
+from discovery.fund_flow_analysis import analyze_fund_flow
 from discovery.market_state import MarketState, get_market_state_for_scoring, get_market_adjusted_weights
 from discovery.news import analyze_news_items
 from discovery.rotation_pool import NON_TECH_UNIVERSES, ROTATION_SECTOR_TAGS, get_rotation_codes, get_rotation_sector_names
@@ -1167,6 +1168,13 @@ def _score_row(
     money_structure = _money_structure(row)
     config = _active_score_config()
     
+    # 进行多维度资金流分析
+    fund_flow_analysis = analyze_fund_flow(row)
+    
+    # 使用增强的资金流评分
+    enhanced_flow = fund_flow_analysis.strength_score
+    enhanced_persistence = fund_flow_analysis.persistence_score
+    
     # 获取市场环境并调整权重
     market_state = _get_cached_market_state()
     market_weights = get_market_adjusted_weights(market_state)
@@ -1181,9 +1189,13 @@ def _score_row(
     news_weight = _safe_float(config.get("news_weight"), market_weights.get("news_weight", 0.10))
     risk_weight = _safe_float(config.get("risk_weight"), market_weights.get("risk_weight", -0.12))
 
+    # 使用增强的资金流评分（原评分和增强评分的加权平均）
+    final_flow = flow * 0.4 + enhanced_flow * 0.6
+    final_persistence = persistence * 0.4 + enhanced_persistence * 0.6
+    
     score = (
-        flow * flow_weight
-        + persistence * flow_persistence_weight
+        final_flow * flow_weight
+        + final_persistence * flow_persistence_weight
         + trend * trend_weight
         + volume * volume_weight
         + quality * data_quality_weight
@@ -1261,6 +1273,11 @@ def _score_row(
     item["score_confidence"] = confidence_result.confidence
     item["score_confidence_level"] = confidence_result.level
     item["score_confidence_factors"] = confidence_result.factors
+    
+    # 添加资金流分析结果
+    item["fund_flow_analysis"] = fund_flow_analysis.to_dict()
+    item["enhanced_flow_score"] = round(enhanced_flow, 2)
+    item["enhanced_persistence_score"] = round(enhanced_persistence, 2)
     
     item["ai"] = build_stock_brief(item)
     return item
