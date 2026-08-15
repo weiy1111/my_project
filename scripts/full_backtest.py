@@ -54,6 +54,11 @@ def _calculate_return_for_horizon(
         return None
     
     trade_dt = pd.to_datetime(trade_date)
+    
+    # 检查推荐日期是否在K线数据范围内
+    if trade_dt > kline.index.max():
+        return None
+    
     future = kline[kline.index > trade_dt].head(horizon)
     
     if len(future) < horizon:
