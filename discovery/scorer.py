@@ -23,6 +23,7 @@ from discovery.fund_flow import get_fund_flow_rank
 from discovery.market_state import MarketState, get_market_state_for_scoring, get_market_adjusted_weights
 from discovery.news import analyze_news_items
 from discovery.rotation_pool import NON_TECH_UNIVERSES, ROTATION_SECTOR_TAGS, get_rotation_codes, get_rotation_sector_names
+from discovery.score_confidence import calculate_score_confidence
 from discovery.tech_pool import get_big_tech_codes, get_code_sector_names
 
 
@@ -1254,6 +1255,13 @@ def _score_row(
     item.update(_tomorrow_entry(item))
     item.update(_build_entry_triggers(item))
     item.update(_strict_quality_gate(item))
+    
+    # 计算评分置信度
+    confidence_result = calculate_score_confidence(item, market_state_confidence)
+    item["score_confidence"] = confidence_result.confidence
+    item["score_confidence_level"] = confidence_result.level
+    item["score_confidence_factors"] = confidence_result.factors
+    
     item["ai"] = build_stock_brief(item)
     return item
 
