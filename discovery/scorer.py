@@ -20,6 +20,7 @@ from discovery.announcements import get_stock_announcements
 from discovery.cache_store import history_cache_path, is_fresh, kline_cache_path, news_cache_path, read_df, read_json, write_df
 from discovery.db import DEFAULT_SCORE_CONFIG, get_score_config
 from discovery.fund_flow import get_fund_flow_rank
+from discovery.market_state import MarketState, get_market_state_for_scoring, get_market_adjusted_weights
 from discovery.news import analyze_news_items
 from discovery.rotation_pool import NON_TECH_UNIVERSES, ROTATION_SECTOR_TAGS, get_rotation_codes, get_rotation_sector_names
 from discovery.tech_pool import get_big_tech_codes, get_code_sector_names
@@ -39,6 +40,8 @@ _ANN_FEATURE_CACHE: dict[str, tuple[float, dict]] = {}
 _ANN_FEATURE_CACHE_TTL = 600
 _SCORE_CONFIG_CACHE: tuple[float, dict] | None = None
 _SCORE_CONFIG_TTL = 60
+_MARKET_STATE_CACHE: tuple[float, MarketState] | None = None
+_MARKET_STATE_CACHE_TTL = 300  # 5分钟缓存市场状态
 ROTATION_UNIVERSES = set(ROTATION_SECTOR_TAGS.keys())
 LEADER_UNIVERSE = "leader"
 MAINLINE_UNIVERSE = "mainline"
@@ -114,6 +117,37 @@ def _active_score_config() -> dict:
         pass
     _SCORE_CONFIG_CACHE = (now, config)
     return config
+
+
+_MARKET_STATE_RESULT_CACHE: tuple[float, tuple[MarketState, float]] | None = None
+
+
+def _get_cached_market_state() -> MarketState:
+    """获取缓存的市场状态"""
+    global _MARKET_STATE_CACHE, _MARKET_STATE_RESULT_CACHE
+    now = time.time()
+    if _MARKET_STATE_CACHE and now - _MARKET_STATE_CACHE[0] < _MARKET_STATE_CACHE_TTL:
+        return _MARKET_STATE_CACHE[1]
+    try:
+        from discovery.market_state import detect_market_state
+        result = detect_market_state()
+        market_state = result.state
+        confidence = result.confidence
+        _MARKET_STATE_CACHE = (now, market_state)
+        _MARKET_STATE_RESULT_CACHE = (now, (market_state, confidence))
+        return market_state
+    except Exception:
+        # 如果检测失败，默认使用震荡市
+        return MarketState.SIDEWAYS
+
+
+def _get_market_state_confidence() -> float:
+    """获取当前市场状态检测的置信度"""
+    global _MARKET_STATE_RESULT_CACHE
+    now = time.time()
+    if _MARKET_STATE_RESULT_CACHE and now - _MARKET_STATE_RESULT_CACHE[0] < _MARKET_STATE_CACHE_TTL:
+        return _MARKET_STATE_RESULT_CACHE[1][1]
+    return 0.8  # 默认置信度
 
 
 def _compute_rsi(close: pd.Series, period: int = 14) -> float:
@@ -1131,15 +1165,29 @@ def _score_row(
     announcement_risk = _safe_float(announcements.get("announcement_risk_score"))
     money_structure = _money_structure(row)
     config = _active_score_config()
+    
+    # 获取市场环境并调整权重
+    market_state = _get_cached_market_state()
+    market_weights = get_market_adjusted_weights(market_state)
+    market_state_confidence = _get_market_state_confidence()
+    
+    # 合并用户配置和市场调整权重（用户配置优先）
+    flow_weight = _safe_float(config.get("flow_weight"), market_weights.get("flow_weight", 0.34))
+    flow_persistence_weight = _safe_float(config.get("flow_persistence_weight"), market_weights.get("flow_persistence_weight", 0.21))
+    trend_weight = _safe_float(config.get("trend_weight"), market_weights.get("trend_weight", 0.23))
+    volume_weight = _safe_float(config.get("volume_weight"), market_weights.get("volume_weight", 0.11))
+    data_quality_weight = _safe_float(config.get("data_quality_weight"), market_weights.get("data_quality_weight", 0.06))
+    news_weight = _safe_float(config.get("news_weight"), market_weights.get("news_weight", 0.10))
+    risk_weight = _safe_float(config.get("risk_weight"), market_weights.get("risk_weight", -0.12))
 
     score = (
-        flow * _safe_float(config.get("flow_weight"), 0.34)
-        + persistence * _safe_float(config.get("flow_persistence_weight"), 0.21)
-        + trend * _safe_float(config.get("trend_weight"), 0.23)
-        + volume * _safe_float(config.get("volume_weight"), 0.11)
-        + quality * _safe_float(config.get("data_quality_weight"), 0.06)
-        + news_score * _safe_float(config.get("news_weight"), 0.10)
-        - risk * abs(_safe_float(config.get("risk_weight"), -0.12))
+        flow * flow_weight
+        + persistence * flow_persistence_weight
+        + trend * trend_weight
+        + volume * volume_weight
+        + quality * data_quality_weight
+        + news_score * news_weight
+        - risk * abs(risk_weight)
     )
     score -= min(18.0, announcement_risk * 0.16)
     short_term_score = _short_term_score(
@@ -1191,6 +1239,8 @@ def _score_row(
         "trend_score": round(trend, 2),
         "volume_score": round(volume, 2),
         "risk_score": round(risk, 2),
+        "market_state": market_state.value,
+        "market_state_confidence": round(market_state_confidence, 2),
         "updated_at": row.get("updated_at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
         "sectors": list(dict.fromkeys([*get_code_sector_names(code), *get_rotation_sector_names(code)])),
         **kline,
