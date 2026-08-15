@@ -19,6 +19,7 @@ from discovery.accumulation import build_accumulation_analysis
 from discovery.announcements import get_stock_announcements
 from discovery.cache_store import history_cache_path, is_fresh, kline_cache_path, news_cache_path, read_df, read_json, write_df
 from discovery.db import DEFAULT_SCORE_CONFIG, get_score_config
+from discovery.dynamic_stop_loss import dynamic_stop_loss
 from discovery.fund_flow import get_fund_flow_rank
 from discovery.fund_flow_analysis import analyze_fund_flow
 from discovery.market_state import MarketState, get_market_state_for_scoring, get_market_adjusted_weights
@@ -1041,6 +1042,7 @@ def _build_entry_triggers(stock: dict) -> dict:
         "entry_total_count": len(checks),
         "entry_pullback_zone": f"{pullback_low:.2f} - {pullback_high:.2f}" if pullback_low and pullback_high else "--",
         "entry_checks": checks,
+        "support_level": support,
     }
 
 
@@ -1278,6 +1280,22 @@ def _score_row(
     item["fund_flow_analysis"] = fund_flow_analysis.to_dict()
     item["enhanced_flow_score"] = round(enhanced_flow, 2)
     item["enhanced_persistence_score"] = round(enhanced_persistence, 2)
+    
+    # 计算动态止损
+    current_price = _safe_float(row.get("price"))
+    if current_price > 0:
+        # 获取市场状态
+        market_state_str = market_state.value if market_state else "sideways"
+        
+        # 计算动态止损
+        stop_loss_result = dynamic_stop_loss(
+            current_price=current_price,
+            kline_df=kline_df,
+            support_level=support if 'support' in dir() else None,
+            market_state=market_state_str,
+            risk_tolerance="medium",
+        )
+        item["dynamic_stop_loss"] = stop_loss_result.to_dict()
     
     item["ai"] = build_stock_brief(item)
     return item
