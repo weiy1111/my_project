@@ -25,3 +25,4 @@ build/
 *.key
 *.pem
 cloud_auth_state.json
+.omo/
