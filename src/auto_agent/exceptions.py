@@ -90,3 +90,36 @@ class ImChannelAuthError(ImChannelError):
 class ImChannelProtocolError(ImChannelError):
     code = "im_channel_protocol_error"
     retryable = False
+
+
+class SkillError(AutoAgentError):
+    code = "skill_error"
+
+
+class SkillNotFoundError(SkillError):
+    code = "skill_not_found"
+    retryable = False
+
+
+class DuplicateSkillError(SkillError):
+    code = "duplicate_skill"
+    retryable = False
+
+
+class SkillConfigurationError(SkillError):
+    code = "skill_configuration_error"
+    retryable = False
+
+
+class SkillValidationError(SkillError):
+    code = "skill_validation_error"
+    retryable = False
+
+
+class SkillExecutionError(SkillError):
+    code = "skill_execution_error"
+    retryable = True
+
+
+class SkillTimeoutError(SkillExecutionError):
+    code = "skill_timeout"
