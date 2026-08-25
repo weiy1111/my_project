@@ -1,0 +1,11 @@
+{
+  "task_id": "review-example-001",
+  "workspace_id": "demo-workspace",
+  "agent_name": "code_review",
+  "prompt": "审查当前工作区相对于主分支的改动。重点检查行为回归、异常处理和测试缺口。",
+  "tool_overrides": {},
+  "timeout": 900,
+  "webhook_url": null,
+  "metadata": {},
+  "request_id": "review-request-001"
+}
