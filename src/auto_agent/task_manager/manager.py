@@ -20,6 +20,7 @@ from auto_agent.models import (
     TaskSource,
     TaskStatus,
 )
+from auto_agent.skills import SkillDescriptor, SkillMcpBridge
 from auto_agent.workers import BaseAgentWorker
 
 logger = logging.getLogger(__name__)
@@ -35,12 +36,14 @@ class TaskManager:
         *,
         agent_registry: AgentRegistry | None = None,
         workers: dict[str, BaseAgentWorker] | None = None,
+        skill_mcp_bridge: SkillMcpBridge | None = None,
         max_concurrency: int = 4,
         default_timeout: float = 1800,
     ) -> None:
         self.worker = worker
         self.agent_registry = agent_registry or AgentRegistry()
         self._workers = {"default": worker, **(workers or {})}
+        self.skill_mcp_bridge = skill_mcp_bridge
         self.default_timeout = default_timeout
         self._semaphore = asyncio.Semaphore(max_concurrency)
         self._contexts: dict[str, TaskContext] = {}
@@ -66,11 +69,19 @@ class TaskManager:
             sandbox_overrides=request.metadata.get("sandbox_config", {}),
             memory_enabled=memory_override,
         )
+        agent_config = self._with_skill_server(
+            resolved.agent_config,
+            resolved.tool_config,
+            task_id=request.task_id,
+            agent_name=resolved.definition.name,
+            workspace_id=request.workspace_id,
+            source=TaskSource.MULTICA,
+        )
         hermes_request = HermesExecutionRequest(
             agent_name=resolved.definition.name,
             prompt=request.prompt,
             tool_overrides=resolved.tool_config,
-            agent_config=resolved.agent_config,
+            agent_config=agent_config,
             sandbox_config=resolved.sandbox_config,
             memory_enabled=resolved.memory_enabled,
         )
@@ -110,6 +121,14 @@ class TaskManager:
                 metadata.get("memory_enabled") if "memory_enabled" in metadata else None
             ),
         )
+        agent_config = self._with_skill_server(
+            resolved.agent_config,
+            resolved.tool_config,
+            task_id=task_id,
+            agent_name=resolved.definition.name,
+            workspace_id=workspace_id,
+            source=TaskSource.IM,
+        )
         return await self._submit(
             task_id=task_id,
             workspace_id=workspace_id,
@@ -120,7 +139,7 @@ class TaskManager:
                 agent_name=resolved.definition.name,
                 session_id=session_id,
                 prompt=prompt,
-                agent_config=resolved.agent_config,
+                agent_config=agent_config,
                 tool_overrides=resolved.tool_config,
                 sandbox_config=resolved.sandbox_config,
                 memory_enabled=resolved.memory_enabled,
@@ -130,6 +149,39 @@ class TaskManager:
             im_session_id=session_id,
             metadata=metadata,
         )
+
+    def list_skills(self) -> list[SkillDescriptor]:
+        if self.skill_mcp_bridge is None:
+            return []
+        return self.skill_mcp_bridge.registry.list()
+
+    def _with_skill_server(
+        self,
+        agent_config: dict,
+        tool_config: dict,
+        *,
+        task_id: str,
+        agent_name: str,
+        workspace_id: str,
+        source: TaskSource,
+    ) -> dict:
+        merged = dict(agent_config)
+        if self.skill_mcp_bridge is None:
+            return merged
+        server = self.skill_mcp_bridge.build_server(
+            allowed_tools=tool_config,
+            task_id=task_id,
+            agent_name=agent_name,
+            workspace_id=workspace_id,
+            source=source.value,
+        )
+        if server is None:
+            return merged
+        configured = merged.get("mcp_servers", [])
+        if not isinstance(configured, list):
+            raise ValueError("agent runtime_config.mcp_servers 必须是列表")
+        merged["mcp_servers"] = [*configured, server]
+        return merged
 
     async def _submit(
         self,
