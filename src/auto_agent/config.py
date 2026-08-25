@@ -5,6 +5,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 from auto_agent.agents import AgentDefinition
+from auto_agent.skills.models import SkillsConfig
 
 
 class AgentsConfig(BaseModel):
@@ -71,6 +72,7 @@ class AutoAgentConfig(BaseModel):
     hermes: HermesConfig = Field(default_factory=HermesConfig)
     multica: MulticaConfig = Field(default_factory=MulticaConfig)
     im_channels: dict[str, ImChannelConfig] = Field(default_factory=dict)
+    skills: SkillsConfig = Field(default_factory=SkillsConfig)
 
 
 def load_config(path: str | Path) -> AutoAgentConfig:

@@ -103,6 +103,11 @@ multica:
   webhook_path: /v1/tasks
   callback_timeout: 10
   callback_retries: 2
+skills:
+  enabled: false
+  server_name: auto-agent-skills
+  max_concurrency: 4
+  definitions: []
 im_channels:
   feishu_cli:
     enabled: false
