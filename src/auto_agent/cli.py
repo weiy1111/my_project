@@ -1,5 +1,6 @@
 import argparse
 import os
+from pathlib import Path
 
 import uvicorn
 
@@ -13,6 +14,7 @@ from auto_agent.im_channels import (
     FeishuWebhookChannel,
     ImTaskBridge,
 )
+from auto_agent.skills import SkillMcpBridge, build_skill_registry
 from auto_agent.task_manager import TaskManager
 from auto_agent.workers import HermesACPWorker, HermesAgentWorker
 
@@ -32,7 +34,8 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
-    config = load_config(args.config)
+    config_path = Path(args.config).expanduser().resolve()
+    config = load_config(config_path)
     agent_registry = AgentRegistry(
         config.agents.definitions,
         default_agent=config.agents.default_agent,
@@ -53,9 +56,18 @@ def main() -> None:
         )
     else:
         worker = HermesAgentWorker(config.hermes.binary)
+    skill_mcp_bridge = None
+    if config.skills.enabled:
+        skill_registry = build_skill_registry(config.skills)
+        skill_mcp_bridge = SkillMcpBridge(
+            skill_registry,
+            config.skills,
+            config_path=config_path,
+        )
     manager = TaskManager(
         worker,
         agent_registry=agent_registry,
+        skill_mcp_bridge=skill_mcp_bridge,
         max_concurrency=config.hermes.max_concurrency,
         default_timeout=config.hermes.default_timeout,
     )

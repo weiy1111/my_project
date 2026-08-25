@@ -9,6 +9,7 @@ from auto_agent.models import (
     TaskContext,
     TaskStatus,
 )
+from auto_agent.skills import BaseSkill, PythonSkill, SkillExecutor, SkillRegistry
 from auto_agent.task_manager.manager import TaskManager
 
 __all__ = [
@@ -16,9 +17,13 @@ __all__ = [
     "AgentEvent",
     "AgentPermissionPolicy",
     "AgentRegistry",
+    "BaseSkill",
     "EventType",
     "HermesExecutionRequest",
     "MulticaTaskRequest",
+    "PythonSkill",
+    "SkillExecutor",
+    "SkillRegistry",
     "TaskContext",
     "TaskManager",
     "TaskStatus",

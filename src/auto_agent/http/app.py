@@ -7,6 +7,7 @@ from auto_agent.exceptions import AutoAgentError
 from auto_agent.models import AgentEvent, MulticaTaskRequest, TaskContext
 from auto_agent.gateways.multica import MulticaEventSink
 from auto_agent.im_channels import BaseWebhookImChannel
+from auto_agent.skills import SkillDescriptor
 from auto_agent.task_manager import TaskManager
 
 
@@ -70,6 +71,10 @@ def create_app(
             worker_name=definition.worker_name,
             tools=sorted(definition.tools),
         )
+
+    @app.get("/v1/skills", response_model=list[SkillDescriptor])
+    async def list_skills() -> list[SkillDescriptor]:
+        return task_manager.list_skills()
 
     @app.post("/v1/tasks", response_model=TaskContext, status_code=202)
     async def submit_task(request: MulticaTaskRequest) -> TaskContext:
