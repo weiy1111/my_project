@@ -6,6 +6,8 @@
 
 该模块用于声明、注册、选择和校验 Agent。它不执行模型推理，也不实现业务工具。
 
+Agent 的 `tools` 字段同时用于 Skill 白名单：只有已注册且在该字段中声明的 Skill 才会通过临时 MCP Server 暴露给 Hermes。生产环境应将 `allow_unlisted_tools` 设置为 `false`。
+
 ## AgentDefinition
 
 | 字段 | 说明 |

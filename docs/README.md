@@ -16,6 +16,7 @@
 - [Multica 网关](modules/gateways_multica.md)
 - [IM 渠道](modules/im_channels.md)
 - [飞书开放平台接入](feishu_open_platform.md)
+- [Skill 扩展](skills.md)
 - [HTTP 服务](modules/http.md)
 - [CLI 与运行模式](modules/cli.md)
 - [测试与验证](modules/testing.md)

@@ -16,6 +16,7 @@
 | `HermesConfig` | `protocol`, `acp_command`, `model_provider`, `permission_mode`, `max_concurrency`, `default_timeout` | Hermes 协议、模型、进程权限和调度限制 |
 | `MulticaConfig` | `callback_url`, `token`, `callback_retries` | Multica 出站回调 |
 | `ImChannelConfig` | `enabled`, `command`, `webhook_path`, 凭据环境变量名、会话和回复策略 | IM CLI/webhook 生命周期 |
+| `SkillsConfig` | `enabled`, `definitions`, `max_concurrency` | Python/CLI Skill 注册和 MCP 暴露 |
 | `AutoAgentConfig` | `hermes`, `multica`, `im_channels` | 根配置 |
 
 ## 使用
@@ -71,3 +72,5 @@ model_provider:
 Worker 启动时读取 `MIMO_API_KEY`，在独立 Hermes 子进程中映射为 `ANTHROPIC_API_KEY`，并生成不含密钥的临时 Hermes 配置。缺少环境变量时任务会在启动 Hermes 前失败；Worker 关闭时临时配置会被删除。
 
 Agent 可在 YAML 的 `agents.definitions` 中声明。生产环境应显式设置权限策略，不要依赖宽松默认值。
+
+Skill 的完整配置和执行协议见 `docs/skills.md`。默认 `skills.enabled: false`，不会改变未配置 Skill 时的运行行为。
