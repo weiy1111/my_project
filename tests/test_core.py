@@ -41,5 +41,6 @@ def test_app_has_health_endpoint() -> None:
     assert "/healthz" in paths
     assert "/v1/agents" in paths
     assert "/v1/agents/{agent_name}" in paths
+    assert "/v1/skills" in paths
     assert "/v1/tasks" in paths
     assert "/v1/tasks/{task_id}/events" in paths
