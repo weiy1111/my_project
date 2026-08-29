@@ -122,19 +122,49 @@ def main() -> None:
             group_session_scope=webhook_config.group_session_scope,
             reply_mode=webhook_config.reply_mode,
             respond_to_group_mentions_only=webhook_config.respond_to_group_mentions_only,
+            allowed_chats=webhook_config.allowed_chats,
+            allowed_senders=webhook_config.allowed_senders,
             stream_events=webhook_config.stream_events,
             max_message_chars=webhook_config.max_message_chars,
             max_clock_skew_seconds=webhook_config.max_clock_skew_seconds,
         )
         webhook_channels.append(webhook_channel)
-        components.append(
-            ImTaskBridge(
-                webhook_channel,
-                manager,
-                workspace_id=webhook_config.workspace_id,
-                default_agent=webhook_config.default_agent,
-            )
+        feishu_bridge = ImTaskBridge(
+            webhook_channel,
+            manager,
+            workspace_id=webhook_config.workspace_id,
+            default_agent=webhook_config.default_agent,
         )
+        webhook_channel.on_action(feishu_bridge.handle_action)
+        components.append(feishu_bridge)
+    ws_config = config.im_channels.get("feishu_ws")
+    if ws_config and ws_config.enabled:
+        from auto_agent.im_channels import FeishuLongConnectionChannel
+
+        ws_channel = FeishuLongConnectionChannel(
+            app_id=_required_env(
+                ws_config.app_id_env, "im_channels.feishu_ws.app_id_env"
+            ),
+            app_secret=_required_env(
+                ws_config.app_secret_env, "im_channels.feishu_ws.app_secret_env"
+            ),
+            base_url=ws_config.base_url,
+            group_session_scope=ws_config.group_session_scope,
+            reply_mode=ws_config.reply_mode,
+            respond_to_group_mentions_only=ws_config.respond_to_group_mentions_only,
+            allowed_chats=ws_config.allowed_chats,
+            allowed_senders=ws_config.allowed_senders,
+            stream_events=ws_config.stream_events,
+            max_message_chars=ws_config.max_message_chars,
+        )
+        ws_bridge = ImTaskBridge(
+            ws_channel,
+            manager,
+            workspace_id=ws_config.workspace_id,
+            default_agent=ws_config.default_agent,
+        )
+        ws_channel.on_action(ws_bridge.handle_action)
+        components.append(ws_bridge)
     uvicorn.run(
         create_app(
             manager,

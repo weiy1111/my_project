@@ -126,10 +126,30 @@ im_channels:
     app_id_env: FEISHU_APP_ID
     app_secret_env: FEISHU_APP_SECRET
     verification_token_env: FEISHU_VERIFICATION_TOKEN
-    encrypt_key_env: FEISHU_ENCRYPT_KEY
+    # 未开启事件加密：置为 null；如控制台开启了加密，改回 FEISHU_ENCRYPT_KEY 并在 .env 填入
+    encrypt_key_env: null
     group_session_scope: sender
     reply_mode: reply_message
     respond_to_group_mentions_only: true
+    # 发送方白名单：留空表示不限制；群聊 chat 以 oc_ 开头，用户以 ou_ 开头。
+    # allowed_chats: ["oc_xxx"]
+    # allowed_senders: ["ou_xxx"]
     stream_events: false
     max_message_chars: 8000
     max_clock_skew_seconds: 300
+  # 长连接模式：无需公网域名和加密策略，与 feishu_webhook 二选一即可。
+  # 需在飞书后台「事件与回调」选择「使用长连接接收事件」。
+  feishu_ws:
+    enabled: false
+    base_url: https://open.feishu.cn
+    workspace_id: default
+    default_agent: general
+    app_id_env: FEISHU_APP_ID
+    app_secret_env: FEISHU_APP_SECRET
+    group_session_scope: sender
+    reply_mode: reply_message
+    respond_to_group_mentions_only: true
+    allowed_chats: []
+    allowed_senders: []
+    stream_events: false
+    max_message_chars: 8000

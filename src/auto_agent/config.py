@@ -62,6 +62,8 @@ class ImChannelConfig(BaseModel):
     group_session_scope: Literal["chat", "sender", "thread"] = "sender"
     reply_mode: Literal["reply_message", "send_to_chat"] = "reply_message"
     respond_to_group_mentions_only: bool = True
+    allowed_chats: list[str] = Field(default_factory=list)
+    allowed_senders: list[str] = Field(default_factory=list)
     stream_events: bool = False
     max_message_chars: int = Field(default=8000, gt=0)
     max_clock_skew_seconds: int = Field(default=300, ge=0)

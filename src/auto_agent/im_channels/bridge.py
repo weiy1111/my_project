@@ -4,7 +4,8 @@ from uuid import uuid4
 
 from auto_agent.exceptions import AutoAgentError, DuplicateTaskError
 from auto_agent.im_channels.base import BaseImChannel
-from auto_agent.models import AgentEvent, EventType, ImMessage
+from auto_agent.im_channels.cards import CARD_ACTION_CANCEL
+from auto_agent.models import AgentEvent, EventType, ImAction, ImMessage
 from auto_agent.task_manager import TaskManager
 
 
@@ -89,6 +90,25 @@ class ImTaskBridge:
             "已收到，任务开始执行。",
             metadata=reply_metadata,
         )
+
+    async def handle_action(self, action: ImAction) -> None:
+        """Handle an interactive action such as a card cancel button."""
+        if action.action != CARD_ACTION_CANCEL or not action.task_id:
+            self._logger.debug(
+                "ignored IM action %s", action.action, extra={"channel_id": action.channel_id}
+            )
+            return
+        metadata = {"chat_id": action.chat_id} if action.chat_id else {}
+        try:
+            await self.task_manager.cancel(action.task_id)
+        except AutoAgentError:
+            await self.channel.send_reply(
+                action.session_id,
+                "任务已结束或不存在，无法取消。",
+                metadata=metadata,
+            )
+            return
+        await self.channel.send_reply(action.session_id, "任务已取消。", metadata=metadata)
 
     def _make_event_sink(self, session_id: str, reply_metadata: dict):
         async def sink(event: AgentEvent) -> None:

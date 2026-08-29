@@ -50,6 +50,19 @@ class ImMessage(BaseModel):
     reply_callback: str | None = None
 
 
+class ImAction(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    channel_id: str = Field(min_length=1)
+    session_id: str = Field(min_length=1)
+    sender: str = ""
+    action: str = Field(min_length=1)
+    task_id: str | None = None
+    message_id: str | None = None
+    chat_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class AgentEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
 
-from auto_agent.models import AgentEvent, ImMessage
+from auto_agent.models import AgentEvent, ImAction, ImMessage
 
 MessageHandler = Callable[[ImMessage], Awaitable[None]]
+ActionHandler = Callable[[ImAction], Awaitable[None]]
 
 
 class BaseImChannel(ABC):
@@ -12,13 +13,22 @@ class BaseImChannel(ABC):
     def __init__(self, channel_id: str) -> None:
         self.channel_id = channel_id
         self._message_handler: MessageHandler | None = None
+        self._action_handler: ActionHandler | None = None
 
     def on_message(self, handler: MessageHandler) -> None:
         self._message_handler = handler
 
+    def on_action(self, handler: ActionHandler) -> None:
+        """Register a handler for interactive actions (e.g. card buttons)."""
+        self._action_handler = handler
+
     async def dispatch_message(self, message: ImMessage) -> None:
         if self._message_handler is not None:
             await self._message_handler(message)
+
+    async def dispatch_action(self, action: ImAction) -> None:
+        if self._action_handler is not None:
+            await self._action_handler(action)
 
     @abstractmethod
     async def connect(self) -> None:
