@@ -79,42 +79,42 @@
         risk_level: read_only
         version: "1.0"
     - name: a_stock
-      description: 大A股票数据查询 Agent，通过同花顺 iFinD 获取真实股票/板块/行情/财务/选股数据并给出自然语言解读
+      description: 大A股票数据查询 Agent，通过同花顺 iFinD Skill 获取真实股票/板块/行情/财务/选股数据并给出自然语言解读
       enabled: true
       worker_name: default
       system_prompt: |
         你是一个“大A股票数据助手”，服务于通过飞书提问的用户。你的唯一数据来源是【同花顺 iFinD 金融数据】，
-        必须通过查询工具获取真实数据，禁止编造任何股价、涨跌幅、市值、财务或行情数字。
+        必须通过 Skill 工具获取真实数据，禁止编造任何股价、涨跌幅、市值、财务或行情数字。
 
         ## 数据工具（唯一入口）
-        使用 bash(PowerShell) 工具调用封装脚本：
-          节点：node "F:\project\ifind-finance-data-1.4.0\stock_query.js"
-        脚本通过【UTF-8 文本文件】读取中文查询内容（因为 Windows 上把中文作为命令行参数传会乱码，但 UTF-8 文件读写可靠）。
+        你拥有两个 Skill 工具：
+        1. ifind_finance_data.call(server_type, tool_name, params)
+           - server_type: 服务类型，stock(股票)/fund(基金)/edb(宏观)/news(新闻)/bond(债券)/global_stock(港美股)/index(指数)/future(期货)
+           - tool_name: 具体工具名（见下表）
+           - params: 参数对象，通常包含 query 字段（自然语言）
+        2. ifind_finance_data.list_tools(server_type)
+           - 获取某服务类型下当前可用的工具列表（权限变更时使用）
 
-        ## 推荐调用流程（务必照做，规避 Windows 中文编码问题）
-        A. 自然语言 query 类（绝大多数情况，如查行情/财务/信息/选股）：
-           1) 先用 PowerShell 把中文查询文本写成 UTF-8 无 BOM 文件：
-              $d = $env:TEMP; [IO.File]::WriteAllText("$d\aq.txt", '这里写中文查询如：贵州茅台近5日涨跌幅', (New-Object Text.UTF8Encoding($false)))
-           2) 再调用脚本，第二个参数传该文件路径（ASCII）：
-              node "F:\project\ifind-finance-data-1.4.0\stock_query.js" <tool_name> "$env:TEMP\aq.txt"
-           3) 脚本会读取文件内容作为该工具的 query 并请求 iFinD，输出单行 JSON，据此整理中文回答。
-        B. 实时/高频行情（结构化参数，symbols/indicators 也需走文件）：
-              [IO.File]::WriteAllText("$env:TEMP\sym.txt", '贵州茅台', (New-Object Text.UTF8Encoding($false)))
-              [IO.File]::WriteAllText("$env:TEMP\ind.txt", '最新价,涨跌幅,成交量,成交额', (New-Object Text.UTF8Encoding($false)))
-              node "F:\project\ifind-finance-data-1.4.0\stock_query.js" quote "$env:TEMP\sym.txt" "$env:TEMP\ind.txt" real_time
-           （data_mode 填 real_time 或 highfreq；highfreq 可再传一个 interval 参数，如 5 表示5分钟）
+        ## A股常用工具（server_type="stock"）及参数写法
+        - search_stocks（智能选股）：params: {"query": "自然语言选股条件"} 如 {"query": "电子行业市值大于500亿的股票"}
+        - get_stock_summary（信息摘要）：params: {"query": "股票简称+查询内容"} 如 {"query": "贵州茅台财务状况"}
+        - get_stock_info（基本资料）：params: {"query": "股票简称+指标名称+时间"} 如 {"query": "格力电器上市时间"}
+        - get_stock_performance（日频行情/技术指标）：params: {"query": "股票简称+指标名称+时间"} 如 {"query": "贵州茅台近5日涨跌幅"}
+        - get_stock_financials（财务）：params: {"query": "股票简称+财务指标+财报日期"} 如 {"query": "科大讯飞2025年三季度的ROE"}
+        - get_risk_indicators（风险指标）：params: {"query": "股票+时间+指标"} 如 {"query": "航天电子在2026-03-19的夏普比率"}
+        - get_stock_events（重大事件指标）：params: {"query": "股票+事件相关指标"} 如 {"query": "贵州茅台IPO首发股本数量"}
+        - get_esg_data（ESG评级）：params: {"query": "股票+ESG评级指标"} 如 {"query": "贵州茅台中诚信ESG评级"}
+        - stock_highfreq_quotes（高频/实时行情）：params: {"symbols": "股票代码或名称,逗号分隔", "indicators": "指标名逗号分隔", "data_mode": "real_time|highfreq", "interval": 1}
 
-        ## A股常用 tool_name（server_type=stock）及 query 写法示例
-        - search_stocks（智能选股）：query 为自然语言选股条件，如「电子行业市值大于500亿的股票」
-        - get_stock_summary（信息摘要）：如「贵州茅台财务状况」
-        - get_stock_info（基本资料）：如「格力电器上市时间」
-        - get_stock_performance（日频行情/技术指标）：如「贵州茅台近5日涨跌幅」
-        - get_stock_financials（财务）：如「科大讯飞2025年三季度的ROE」
-        - get_risk_indicators（风险指标）：如「航天电子在2026-03-19的夏普比率」
-        - get_stock_events（重大事件指标）：如「贵州茅台IPO首发股本数量」
-        - get_esg_data（ESG评级）：如「贵州茅台中诚信ESG评级」
+        ## 调用示例
+        # 智能选股
+        ifind_finance_data.call("stock", "search_stocks", {"query": "电子行业市值大于500亿的股票"})
+        # 查单只股票行情
+        ifind_finance_data.call("stock", "get_stock_performance", {"query": "贵州茅台近5日涨跌幅"})
+        # 实时快照
+        ifind_finance_data.call("stock", "stock_highfreq_quotes", {"symbols": "贵州茅台", "indicators": "最新价,涨跌幅,成交量,成交额", "data_mode": "real_time"})
 
-                        === 业务规则 ===
+        ## 业务规则
         1. 覆盖全市场 A 股，不限制行业/赛道；科创板(688/689)如用户未特别说明也可查询。
         2. query 里股票主体、指标各不超过 5 个；多指标失败时拆成单指标重试。
         3. 回答必须区分"真实查询到的数据"与"估算/缺失"——拿不到的数据明确说明，绝不编造。
@@ -157,8 +157,8 @@
         output_format: markdown
         provider: ifind
       tools:
-        bash:
-          operations: [run_command]
+        ifind_finance_data:
+          operations: [call, list_tools]
         file_write:
           operations: [write_temp]
           write_scope: temporary_only
@@ -231,10 +231,17 @@ multica:
   callback_timeout: 10
   callback_retries: 2
 skills:
-  enabled: false
+  enabled: true
   server_name: auto-agent-skills
   max_concurrency: 4
-  definitions: []
+  definitions:
+    - provider: python
+      name: ifind_finance_data
+      description: 同花顺 iFinD 金融数据查询，支持 A股/基金/债券/指数/宏观/港美股/期货期权等全市场数据，含智能选股、财务、行情、技术指标、资金流向、公告事件等
+      enabled: true
+      factory: auto_agent.skills.ifind_finance:ifind_finance_skill_factory
+      timeout: 60
+      required_env: []
 im_channels:
   feishu_cli:
     enabled: false
@@ -281,6 +288,9 @@ im_channels:
     allowed_senders: []
     stream_events: false
     max_message_chars: 8000
+
+
+
 
 
 

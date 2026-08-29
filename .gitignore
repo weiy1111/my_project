@@ -27,3 +27,6 @@ build/
 cloud_auth_state.json
 .omo/
 *.local.ps1
+
+# Generated stock reports (scheduled workflow outputs)
+reports/
