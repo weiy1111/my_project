@@ -31,6 +31,13 @@ _TERMINAL_STATUSES = {"completed", "cancelled", "failed", "timed_out"}
 _TOKEN_ERROR_CODES = {99991661, 99991663, 99991664, 99991668}
 
 
+def _read_file_bytes(path: str) -> bytes:
+    """Read a local file as raw bytes for multipart upload."""
+    with open(path, "rb") as handle:
+        return handle.read()
+
+
+
 class FeishuApiChannel(BaseImChannel):
     """Feishu Open Platform outbound API plus inbound message parsing.
 
@@ -238,6 +245,122 @@ class FeishuApiChannel(BaseImChannel):
             message_id=message_id,
             chat_id=chat_id,
         )
+
+    # ------------------------------------------------ active push to a chat
+    #
+    # The methods below are for outbound "push" to a named chat (a group or a
+    # user) instead of replying into an existing message thread. They always
+    # target `receive_id_type=chat_id` regardless of the configured `reply_mode`,
+    # so scheduled/automated workflows can deliver reports to an arbitrary chat.
+    # The receiving chat_id is an open ID such as an `oc_*` group or `ou_*` user.
+
+    async def send_text_to_chat(self, chat_id: str, content: str) -> None:
+        """Actively send a plain-text message to a chat (group or user)."""
+        if not content:
+            return
+        await self._post_to_chat(
+            msg_type="text",
+            content_obj={"text": content},
+            chat_id=chat_id,
+        )
+
+    async def send_file_to_chat(
+        self,
+        chat_id: str,
+        file_path: str,
+        *,
+        file_name: str | None = None,
+        text: str | None = None,
+    ) -> dict:
+        """Upload a local file and actively send it to a chat.
+
+        Optionally sends a ``text`` summary message first. Returns the upload
+        response payload (contains the ``file_key`` used in the message).
+        """
+        import os
+
+        if text:
+            await self.send_text_to_chat(chat_id, text)
+        name = file_name or os.path.basename(file_path)
+        data = await self._upload_file(file_path, file_name=name)
+        file_key = (data or {}).get("data", {}).get("file_key")
+        if not file_key:
+            raise ImChannelError(
+                "Feishu file upload returned no file_key",
+                context={"status_code": getattr(data, "status_code", None)},
+            )
+        await self._post_to_chat(
+            msg_type="file",
+            content_obj={"file_key": file_key, "file_name": name},
+            chat_id=chat_id,
+        )
+        return data
+
+    async def _upload_file(self, file_path: str, *, file_name: str) -> dict:
+        client = self._require_client()
+        token = await self._get_token()
+        files = {
+            "file": (file_name, _read_file_bytes(file_path), "application/octet-stream")
+        }
+        data = {"file_type": "stream", "file_name": file_name}
+        response = await client.post(
+            f"{self.base_url}/open-apis/im/v1/files",
+            headers={"Authorization": f"Bearer {token}"},
+            data=data,
+            files=files,
+        )
+        payload = self._response_json(response)
+        if response.is_error or payload.get("code", 0) != 0:
+            raise ImChannelError(
+                "Feishu file upload failed",
+                context={
+                    "status_code": response.status_code,
+                    "code": payload.get("code"),
+                    "message": payload.get("msg"),
+                },
+            )
+        return payload
+
+    async def _post_to_chat(
+        self,
+        *,
+        msg_type: str,
+        content_obj: dict,
+        chat_id: str,
+    ) -> dict:
+        client = self._require_client()
+        body = {
+            "msg_type": msg_type,
+            "content": json.dumps(content_obj, ensure_ascii=False),
+            "uuid": str(uuid4()),
+            "receive_id": chat_id,
+        }
+        headers = {"Authorization": f"Bearer {await self._get_token()}"}
+
+        async def do_post() -> httpx.Response:
+            return await client.post(
+                f"{self.base_url}/open-apis/im/v1/messages",
+                params={"receive_id_type": "chat_id"},
+                headers=headers,
+                json=body,
+            )
+
+        response = await do_post()
+        data = self._response_json(response)
+        if response.status_code == 401 or data.get("code") in _TOKEN_ERROR_CODES:
+            headers["Authorization"] = f"Bearer {await self._get_token(force_refresh=True)}"
+            response = await do_post()
+            data = self._response_json(response)
+        if response.is_error or data.get("code", 0) != 0:
+            raise ImChannelError(
+                "Feishu message push to chat failed",
+                context={
+                    "status_code": response.status_code,
+                    "code": data.get("code"),
+                    "message": data.get("msg"),
+                },
+            )
+        return data
 
     async def _post_message(
         self,

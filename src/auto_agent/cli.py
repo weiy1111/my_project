@@ -16,7 +16,12 @@ from auto_agent.im_channels import (
 )
 from auto_agent.skills import SkillMcpBridge, build_skill_registry
 from auto_agent.task_manager import TaskManager
-from auto_agent.workers import HermesACPWorker, HermesAgentWorker
+from auto_agent.workers import (
+    HermesACPWorker,
+    HermesAgentWorker,
+    OpenCodeCliWorker,
+    OpenAICompatibleWorker,
+)
 
 
 def _required_env(env_name: str | None, field_name: str) -> str:
@@ -40,7 +45,32 @@ def main() -> None:
         config.agents.definitions,
         default_agent=config.agents.default_agent,
     )
-    if config.hermes.protocol == "acp":
+    # 选择 worker：opencode_cli 优先，其次 openai_compatible，否则走 hermes
+    if config.opencode_cli.enabled:
+        worker = OpenCodeCliWorker(
+            model=config.opencode_cli.model,
+            command=config.opencode_cli.command,
+            system_prompt=config.opencode_cli.system_prompt,
+            timeout=config.opencode_cli.timeout,
+            cwd=config.opencode_cli.working_directory,
+            env=config.opencode_cli.environment,
+        )
+    elif config.openai_compatible.enabled:
+        api_key = os.environ.get(config.openai_compatible.api_key_env, "")
+        if not api_key:
+            raise RuntimeError(
+                f"required environment variable is not set: {config.openai_compatible.api_key_env}"
+            )
+        worker = OpenAICompatibleWorker(
+            api_base=config.openai_compatible.api_base,
+            api_key=api_key,
+            model=config.openai_compatible.model,
+            system_prompt=config.openai_compatible.system_prompt,
+            timeout=config.openai_compatible.timeout,
+            max_tokens=config.openai_compatible.max_tokens,
+            temperature=config.openai_compatible.temperature,
+        )
+    elif config.hermes.protocol == "acp":
         worker = HermesACPWorker(
             config.hermes.acp_command,
             config.hermes.acp_args,
@@ -79,6 +109,7 @@ def main() -> None:
     )
     components: list[object] = []
     webhook_channels: list[BaseWebhookImChannel] = []
+    feishu_channels: list[object] = []
     feishu_config = config.im_channels.get("feishu_cli")
     if feishu_config and feishu_config.enabled and feishu_config.command:
         channel = FeishuCliChannel(
@@ -129,6 +160,7 @@ def main() -> None:
             max_clock_skew_seconds=webhook_config.max_clock_skew_seconds,
         )
         webhook_channels.append(webhook_channel)
+        feishu_channels.append(webhook_channel)
         feishu_bridge = ImTaskBridge(
             webhook_channel,
             manager,
@@ -157,6 +189,7 @@ def main() -> None:
             stream_events=ws_config.stream_events,
             max_message_chars=ws_config.max_message_chars,
         )
+        feishu_channels.append(ws_channel)
         ws_bridge = ImTaskBridge(
             ws_channel,
             manager,
@@ -171,6 +204,7 @@ def main() -> None:
             multica_sink=sink,
             components=components,
             webhook_channels=webhook_channels,
+            feishu_channels=feishu_channels,
         ),
         host=args.host,
         port=args.port,

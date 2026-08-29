@@ -22,6 +22,34 @@ class HermesModelProviderConfig(BaseModel):
     hermes_api_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
 
 
+class OpenAICompatibleConfig(BaseModel):
+    """直接调用 OpenAI 兼容 API 的配置，绕过 hermes-acp 子进程。"""
+
+    enabled: bool = False
+    api_base: str = Field(min_length=1, description="API 地址，如 http://model.mify.ai.srv/v1")
+    api_key_env: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$", description="API key 的环境变量名")
+    model: str = Field(min_length=1, description="模型名称，如 xiaomi/mimo-v2.5-flash")
+    system_prompt: str = ""
+    timeout: float = Field(default=120, gt=0)
+    max_tokens: int = Field(default=4096, gt=0)
+    temperature: float = Field(default=0.7, ge=0, le=2)
+
+
+class OpenCodeCliConfig(BaseModel):
+    """通过 OpenCode CLI（opencode run）调用自带免费模型的配置。
+
+    无需 API key；模型格式为 `provider/model`，例如 `opencode/mimo-v2.5-free`。
+    """
+
+    enabled: bool = False
+    command: str = Field(default="opencode", min_length=1, description="opencode 可执行文件")
+    model: str = Field(default="opencode/mimo-v2.5-free", min_length=1, description="模型，如 opencode/mimo-v2.5-free")
+    system_prompt: str = ""
+    timeout: float = Field(default=300, gt=0)
+    working_directory: str | None = None
+    environment: dict[str, str] = Field(default_factory=dict)
+
+
 class HermesConfig(BaseModel):
     protocol: Literal["acp", "jsonl"] = "acp"
     acp_command: str = "hermes-acp"
@@ -72,6 +100,8 @@ class ImChannelConfig(BaseModel):
 class AutoAgentConfig(BaseModel):
     agents: AgentsConfig = Field(default_factory=AgentsConfig)
     hermes: HermesConfig = Field(default_factory=HermesConfig)
+    openai_compatible: OpenAICompatibleConfig = Field(default_factory=OpenAICompatibleConfig)
+    opencode_cli: OpenCodeCliConfig = Field(default_factory=OpenCodeCliConfig)
     multica: MulticaConfig = Field(default_factory=MulticaConfig)
     im_channels: dict[str, ImChannelConfig] = Field(default_factory=dict)
     skills: SkillsConfig = Field(default_factory=SkillsConfig)

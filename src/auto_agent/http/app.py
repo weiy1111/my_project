@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 
@@ -17,9 +18,11 @@ def create_app(
     multica_sink: MulticaEventSink | None = None,
     components: list[object] | None = None,
     webhook_channels: list[BaseWebhookImChannel] | None = None,
+    feishu_channels: list[object] | None = None,
 ) -> FastAPI:
     components = components or []
     webhook_channels = webhook_channels or []
+    feishu_channels = feishu_channels or []
     if multica_sink is not None:
 
         async def publish_event(event) -> None:
@@ -105,6 +108,44 @@ def create_app(
             return await task_manager.cancel(task_id)
         except AutoAgentError as exc:
             raise HTTPException(status_code=404, detail=exc.as_dict()) from exc
+
+    @app.post("/v1/im/send")
+    async def send_im(payload: dict[str, Any]) -> dict[str, Any]:
+        """Actively push a report to a Feishu chat.
+
+        Body:
+          chat_id   (str, required) open id of the target chat (``oc_*`` group
+                    or ``ou_*`` user)
+          file_path (str, optional)	local path of the HTML file to upload and send
+          file_name (str, optional)	overrides the uploaded file name
+          text      (str, optional)	plain-text summary sent before/with the file
+        At least one of ``file_path`` / ``text`` must be provided.
+        """
+        chat_id = payload.get("chat_id")
+        if not chat_id:
+            raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "chat_id required"})
+        if not feishu_channels:
+            raise HTTPException(status_code=503, detail={"code": "no_channel", "message": "no feishu channel available"})
+        channel = feishu_channels[0]
+        file_path = payload.get("file_path")
+        text = payload.get("text")
+        if not file_path and not text:
+            raise HTTPException(status_code=400, detail={"code": "bad_request", "message": "file_path or text required"})
+        result: dict[str, Any] = {"chat_id": chat_id, "sent": []}
+        try:
+            if text:
+                await channel.send_text_to_chat(chat_id, str(text))
+                result["sent"].append("text")
+            if file_path:
+                await channel.send_file_to_chat(
+                    chat_id,
+                    str(file_path),
+                    file_name=str(payload.get("file_name") or "") or None,
+                )
+                result["sent"].append("file")
+        except AutoAgentError as exc:
+            raise HTTPException(status_code=502, detail=exc.as_dict()) from exc
+        return result
 
     registered_paths: set[str] = set()
     for channel in webhook_channels:
